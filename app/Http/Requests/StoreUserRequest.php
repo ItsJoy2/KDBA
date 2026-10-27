@@ -46,6 +46,7 @@ class StoreUserRequest extends FormRequest
                 'string',
                 'max:30',
                 'unique:users,mobile',
+                'regex:/^01[3-9][0-9]{8}$/',
             ],
 
             'password' => [
@@ -77,8 +78,9 @@ class StoreUserRequest extends FormRequest
             'nid_passport_number' => [
                 'nullable',
                 'string',
-                'max:100',
+                'max:17',
                 'unique:users,nid_passport_number',
+                'regex:/^(?:[0-9]{10}|[0-9]{13}|[0-9]{17}|[A-Za-z]{2}[0-9]{7})$/',
             ],
 
             'photo' => [

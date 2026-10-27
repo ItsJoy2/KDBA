@@ -153,13 +153,17 @@
                                 id="wz-mobile"
                                 name="mobile"
                                 value="{{ old('mobile', $member->mobile ?? '') }}"
-                                maxlength="30"
+                                minlength="11"
+                                maxlength="11"
+                                pattern="01[3-9][0-9]{8}"
+                                inputmode="numeric"
                                 autocomplete="tel"
+                                placeholder="01xxxxxxxxx"
                                 required
                             >
 
                             <div class="invalid-feedback" id="mobile-feedback">
-                                Mobile number is required.
+                                Enter a valid Bangladesh mobile number (exactly 11 digits).
                             </div>
                         </div>
 
@@ -181,7 +185,11 @@
                                 autocomplete="new-password"
                                 {{ !$editing ? 'required' : '' }}
                             >
-
+                            @if ($editing)
+                                <small class="text-muted">
+                                    Leave blank to keep the current password.
+                                </small>
+                            @endif
                             <div class="form-text">
                                 <div id="password-length" class="text-danger">
                                     <i class="bi bi-x-circle me-1"></i>
@@ -208,12 +216,6 @@
                                     At least one symbol (!@#$...)
                                 </div>
                             </div>
-
-                            @if ($editing)
-                                <small class="text-muted">
-                                    Leave blank to keep the current password.
-                                </small>
-                            @endif
                         </div>
 
                         {{-- Confirm Password --}}
@@ -440,9 +442,25 @@
                                 <label class="form-label" for="wz-nid">
                                     NID / Passport number
                                 </label>
-                                <input type="text" class="form-control"
-                                    id="wz-nid" name="nid_passport_number"
-                                    value="{{ old('nid_passport_number', $member->nid_passport_number ?? '') }}" accept=".jpg,.jpeg,.png,">
+
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="wz-nid"
+                                    name="nid_passport_number"
+                                    value="{{ old('nid_passport_number', $member->nid_passport_number ?? '') }}"
+                                    maxlength="17"
+                                    autocomplete="off"
+                                    placeholder="Enter NID or passport number"
+                                >
+
+                                <div class="invalid-feedback" id="nid-feedback">
+                                    Enter a valid Bangladesh NID or passport number.
+                                </div>
+
+                                <div class="form-text">
+                                    Optional. If provided, enter a valid NID or passport number.
+                                </div>
                             </div>
 
                             <div class="col-md-6">
@@ -464,7 +482,7 @@
                                             src="{{ $photoUrl }}"
                                             alt="Current member photo"
                                             class="img-thumbnail"
-                                            style="width: 180px; height: 180px; object-fit: contain;"
+                                            style="width: 100px; height: 100px; object-fit: contain;"
                                         >
 
                                         <div class="small text-muted mt-1">
@@ -487,7 +505,7 @@
                                             src="{{ $nidImages['front'] }}"
                                             alt="Current NID front"
                                             class="img-thumbnail"
-                                            style="max-width: 260px; max-height: 180px; object-fit: contain;"
+                                            style="max-width: 180px; max-height: 100px; object-fit: contain;"
                                         >
                                         <div class="small text-muted mt-1">Current NID front</div>
                                     </div>
@@ -515,7 +533,7 @@
                                             src="{{ $nidImages['back'] }}"
                                             alt="Current NID back"
                                             class="img-thumbnail"
-                                            style="max-width: 260px; max-height: 180px; object-fit: contain;"
+                                            style="max-width: 180px; max-height: 100px; object-fit: contain;"
                                         >
                                         <div class="small text-muted mt-1">Current NID back</div>
                                     </div>
@@ -578,442 +596,487 @@
 
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('wizard-form');
-    if (!form) return;
-
-    const editing = @json($editing);
-
-    // Existing images (edit mode) keyed by input name
-    const existingImages = {
-        'photo': @json($photoUrl ?? null),
-        'nid_images[front]': @json($nidImages['front'] ?? null),
-        'nid_images[back]': @json($nidImages['back'] ?? null)
-    };
-
-    const steps = Array.from(form.querySelectorAll('.wizard-step'));
-    const indicators = document.querySelectorAll('#wizard-steps li');
-    const prevBtn = document.getElementById('wz-prev');
-    const nextBtn = document.getElementById('wz-next');
-    const submitBtn = document.getElementById('wz-submit');
-    const summary = document.getElementById('wz-summary');
-
-    const email = document.getElementById('wz-email');
-    const mobile = document.getElementById('wz-mobile');
-    const password = document.getElementById('wz-password');
-    const confirmPassword = document.getElementById('wz-password2');
-
-    const customFields = [email, mobile, password, confirmPassword];
-    const excludedFields = ['password', 'password_confirmation', '_token', '_method'];
-
-    let currentStep = 0;
-    let blobUrls = [];
-
-    /* ---------------------------------------------------------
-     * Field validators (step 1)
-     * ------------------------------------------------------- */
-    const passwordRules = [
-        { id: 'password-length',    test: v => v.length >= 8 },
-        { id: 'password-uppercase', test: v => /[A-Z]/.test(v) },
-        { id: 'password-lowercase', test: v => /[a-z]/.test(v) },
-        { id: 'password-number',    test: v => /[0-9]/.test(v) },
-        { id: 'password-symbol',    test: v => /[^A-Za-z0-9]/.test(v) }
-    ];
-
-    function setFieldState(field, valid, message = '') {
-        field.classList.toggle('is-invalid', !valid);
-        field.classList.toggle('is-valid', valid);
-
-        if (!valid && message) {
-            const feedback = field.parentElement.querySelector('.invalid-feedback');
-            if (feedback) feedback.textContent = message;
-        }
-    }
-
-    function clearState(field) {
-        field.classList.remove('is-invalid', 'is-valid');
-    }
-
-    function validateEmail() {
-        const value = email.value.trim();
-
-        // Email is optional
-        if (!value) {
-            clearState(email);
-            return true;
-        }
-
-        const valid = email.validity.valid &&
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-
-        setFieldState(email, valid, 'Please enter a valid email address.');
-        return valid;
-    }
-
-    function validateMobile() {
-        const value = mobile.value.trim();
-        let message = '';
-
-        if (!value) {
-            message = 'Mobile number is required.';
-        } else if (value.length > 30) {
-            message = 'Mobile number cannot exceed 30 characters.';
-        } else if (!/^[+]?[\d\s()-]+$/.test(value)) {
-            message = 'Enter a valid mobile number.';
-        } else if (!/[0-9]/.test(value)) {
-            message = 'Mobile number must contain digits.';
-        }
-
-        const valid = message === '';
-        setFieldState(mobile, valid, message);
-        return valid;
-    }
-
-    function validatePasswordConfirmation() {
-        const p = password.value;
-        const c = confirmPassword.value;
-
-        // Editing: both blank = keep current password
-        if (editing && p === '' && c === '') {
-            clearState(confirmPassword);
-            return true;
-        }
-
-        if (c === '') {
-            if (!editing) {
-                setFieldState(confirmPassword, false, 'Please confirm your password.');
-                return false;
-            }
-            clearState(confirmPassword);
-            return true;
-        }
-
-        const valid = p === c;
-        setFieldState(confirmPassword, valid, 'Passwords do not match.');
-        return valid;
-    }
-
-    function validatePassword() {
-        const value = password.value;
-        const optionalBlank = editing && value === '';
-        let allValid = true;
-
-        passwordRules.forEach(rule => {
-            const el = document.getElementById(rule.id);
-            if (!el) return;
-
-            const ok = rule.test(value);
-            const show = ok && !optionalBlank;
-
-            el.classList.toggle('text-success', show);
-            el.classList.toggle('text-danger', !show);
-
-            const icon = el.querySelector('i');
-            if (icon) {
-                icon.className = show ? 'bi bi-check-circle me-1' : 'bi bi-x-circle me-1';
-            }
-
-            if (!ok) allValid = false;
-        });
-
-        if (optionalBlank) {
-            clearState(password);
-            allValid = true;
-        } else {
-            setFieldState(password, allValid);
-        }
-
-        validatePasswordConfirmation();
-        return allValid;
-    }
-
-    /* ---------------------------------------------------------
-     * Step validation
-     * ------------------------------------------------------- */
-    function validateStep(index, report = true) {
-        const fields = steps[index].querySelectorAll('input, select, textarea');
-        let isValid = true;
-        let firstInvalid = null;
-
-        fields.forEach(field => {
-            if (field.disabled) return;
-
-            // Editing: blank password fields are fine
-            if (
-                editing &&
-                (field.id === 'wz-password' || field.id === 'wz-password2') &&
-                field.value === ''
-            ) {
-                clearState(field);
-                return;
-            }
-
-            if (!field.checkValidity()) {
-                field.classList.add('is-invalid');
-                isValid = false;
-                if (!firstInvalid) firstInvalid = field;
-            } else if (!customFields.includes(field)) {
-                field.classList.remove('is-invalid');
-            }
-        });
-
-        // Custom rules for the Account step
-        if (index === 0) {
-            [
-                [email, validateEmail],
-                [mobile, validateMobile],
-                [password, validatePassword],
-                [confirmPassword, validatePasswordConfirmation]
-            ].forEach(([field, fn]) => {
-                if (!fn()) {
-                    isValid = false;
-                    if (!firstInvalid) firstInvalid = field;
-                }
-            });
-        }
-
-        if (!isValid && report && firstInvalid) {
-            firstInvalid.focus();
-            if (!firstInvalid.checkValidity()) {
-                firstInvalid.reportValidity();
-            }
-        }
-
-        return isValid;
-    }
-
-    /* ---------------------------------------------------------
-     * Navigation
-     * ------------------------------------------------------- */
-    function showStep(index, scroll = true) {
-        currentStep = index;
-
-        steps.forEach((step, i) => step.classList.toggle('d-none', i !== index));
-
-        indicators.forEach((indicator, i) => {
-            indicator.classList.toggle('active', i === index);
-            indicator.classList.toggle('completed', i < index);
-        });
-
-        prevBtn.disabled = index === 0;
-
-        const isLast = index === steps.length - 1;
-        nextBtn.classList.toggle('d-none', isLast);
-        submitBtn.classList.toggle('d-none', !isLast);
-
-        if (isLast) renderSummary();
-
-        if (scroll) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-
-    /* ---------------------------------------------------------
-     * Review summary
-     * ------------------------------------------------------- */
-    function getFieldLabel(field) {
-        const label = field.id
-            ? form.querySelector('label[for="' + CSS.escape(field.id) + '"]')
-            : null;
-
-        if (label) {
-            return label.textContent.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
-        }
-
-        return field.name
-            .replace(/\[\]/g, '')
-            .replace(/\[([^\]]+)\]/g, ' $1')
-            .replace(/[_-]/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
-    }
-
-    function addSummaryItem(label, value, type = 'text') {
-        const column = document.createElement('div');
-        column.className = 'col-md-6';
-
-        const card = document.createElement('div');
-        card.className = 'border rounded p-3 h-100';
-
-        const heading = document.createElement('div');
-        heading.className = 'small text-muted mb-1';
-        heading.textContent = label;
-        card.appendChild(heading);
-
-        if (type === 'image') {
-            const img = document.createElement('img');
-            img.src = value;
-            img.alt = label;
-            img.className = 'img-thumbnail mt-1';
-            img.style.maxWidth = '180px';
-            img.style.maxHeight = '180px';
-            card.appendChild(img);
-        } else {
-            const content = document.createElement('div');
-            content.className = 'fw-semibold text-break';
-            content.style.whiteSpace = 'pre-wrap';
-            content.textContent = value || '—';
-            card.appendChild(content);
-        }
-
-        column.appendChild(card);
-        summary.appendChild(column);
-    }
-
-    function renderSummary() {
-        summary.replaceChildren();
-
-        blobUrls.forEach(url => URL.revokeObjectURL(url));
-        blobUrls = [];
-
-        const fields = form.querySelectorAll('input, select, textarea');
-
-        fields.forEach(field => {
-            if (!field.name || field.disabled) return;
-            if (excludedFields.includes(field.name)) return;
-
-            if (['hidden', 'submit', 'button', 'reset'].includes(field.type)) return;
-
-            if ((field.type === 'radio' || field.type === 'checkbox') && !field.checked) return;
-
-            const label = getFieldLabel(field);
-
-            // ----- File inputs -----
-            if (field.type === 'file') {
-                const file = field.files && field.files[0];
-
-                if (file) {
-                    if (file.type.startsWith('image/')) {
-                        const url = URL.createObjectURL(file);
-                        blobUrls.push(url);
-                        addSummaryItem(label + ' (new image)', url, 'image');
-                    } else {
-                        addSummaryItem(label, file.name);
-                    }
-                    return;
-                }
-
-                // Image kept from a previous failed submit
-                const retained = Array.from(
-                    form.querySelectorAll('img[data-retained-image]')
-                ).find(img => img.dataset.retainedImage === field.name);
-
-                if (retained) {
-                    addSummaryItem(label + ' (previously uploaded)', retained.src, 'image');
-                    return;
-                }
-
-                // Existing image from database (edit mode)
-                if (editing && existingImages[field.name]) {
-                    addSummaryItem(label + ' (current image)', existingImages[field.name], 'image');
-                }
-
-                return;
-            }
-
-            // ----- Normal fields -----
-            let value = '';
-
-            if (field.type === 'checkbox') {
-                const roleName = field.closest('label')?.querySelector('strong');
-                value = roleName ? roleName.textContent.trim() : (field.value || 'Yes');
-            } else if (field.tagName === 'SELECT') {
-                if (field.multiple) {
-                    value = Array.from(field.selectedOptions)
-                        .map(o => o.textContent.trim())
-                        .join(', ');
-                } else {
-                    value = field.selectedOptions[0]
-                        ? field.selectedOptions[0].textContent.trim().replace(/\s+/g, ' ')
-                        : '';
-                }
-                // Skip placeholder option
-                if (field.value === '') value = '';
-            } else {
-                value = field.value.trim();
-            }
-
-            if (!value) return;
-
-            addSummaryItem(label, value);
-        });
-
-        if (summary.children.length === 0) {
-            const empty = document.createElement('p');
-            empty.className = 'text-muted';
-            empty.textContent = 'No information has been entered yet.';
-            summary.appendChild(empty);
-        }
-    }
-
-    /* ---------------------------------------------------------
-     * Events
-     * ------------------------------------------------------- */
-    nextBtn.addEventListener('click', function () {
-        if (!validateStep(currentStep)) return;
-        if (currentStep < steps.length - 1) showStep(currentStep + 1);
-    });
-
-    prevBtn.addEventListener('click', function () {
-        if (currentStep > 0) showStep(currentStep - 1);
-    });
-
-    // Live validation
-    email.addEventListener('input', validateEmail);
-    email.addEventListener('blur', validateEmail);
-    mobile.addEventListener('input', validateMobile);
-    mobile.addEventListener('blur', validateMobile);
-    password.addEventListener('input', validatePassword);
-    confirmPassword.addEventListener('input', validatePasswordConfirmation);
-
-    // Clear error styling on edit (except fields with live validation)
-    function clearInvalid(event) {
-        if (customFields.includes(event.target)) return;
-        event.target.classList.remove('is-invalid');
-    }
-    form.addEventListener('input', clearInvalid);
-    form.addEventListener('change', clearInvalid);
-
-    // Final submit
-    form.addEventListener('submit', function (event) {
-        for (let i = 0; i < steps.length; i++) {
-            if (!validateStep(i, false)) {
-                event.preventDefault();
-                showStep(i);
-                validateStep(i, true);
-                return;
-            }
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.innerHTML =
-            '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Submitting...';
-    });
-
-    /* ---------------------------------------------------------
-     * Lawyer assignment toggle
-     * ------------------------------------------------------- */
-    const statusSelect = document.getElementById('member_status');
-    const wrapper = document.getElementById('lawyer-assignment-wrapper');
-    const lawyerSelect = document.getElementById('lawyer_id');
-
-    if (statusSelect && wrapper && lawyerSelect) {
-        const lawyerRequiredStatuses = ['lawyer_assistant', 'apprentice'];
-
-        const toggleLawyerField = () => {
-            const needsLawyer = lawyerRequiredStatuses.includes(statusSelect.value);
-
-            wrapper.style.display = needsLawyer ? '' : 'none';
-            lawyerSelect.disabled = !needsLawyer;
-            lawyerSelect.required = needsLawyer;
-
-            if (!needsLawyer) lawyerSelect.value = '';
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('wizard-form');
+        if (!form) return;
+
+        const editing = @json($editing);
+
+        // Existing images (edit mode) keyed by input name
+        const existingImages = {
+            'photo': @json($photoUrl ?? null),
+            'nid_images[front]': @json($nidImages['front'] ?? null),
+            'nid_images[back]': @json($nidImages['back'] ?? null)
         };
 
-        statusSelect.addEventListener('change', toggleLawyerField);
-        toggleLawyerField();
-    }
+        const steps = Array.from(form.querySelectorAll('.wizard-step'));
+        const indicators = document.querySelectorAll('#wizard-steps li');
+        const prevBtn = document.getElementById('wz-prev');
+        const nextBtn = document.getElementById('wz-next');
+        const submitBtn = document.getElementById('wz-submit');
+        const summary = document.getElementById('wz-summary');
 
-    // Initialize
-    showStep(0, false);
-});
+        const email = document.getElementById('wz-email');
+        const mobile = document.getElementById('wz-mobile');
+        const nidPassport = document.getElementById('wz-nid');
+        const password = document.getElementById('wz-password');
+        const confirmPassword = document.getElementById('wz-password2');
+
+        const customFields = [email, mobile, password, confirmPassword];
+        const excludedFields = ['password', 'password_confirmation', '_token', '_method'];
+
+        let currentStep = 0;
+        let blobUrls = [];
+
+        /* ---------------------------------------------------------
+        * Field validators (step 1)
+        * ------------------------------------------------------- */
+        const passwordRules = [
+            { id: 'password-length',    test: v => v.length >= 8 },
+            { id: 'password-uppercase', test: v => /[A-Z]/.test(v) },
+            { id: 'password-lowercase', test: v => /[a-z]/.test(v) },
+            { id: 'password-number',    test: v => /[0-9]/.test(v) },
+            { id: 'password-symbol',    test: v => /[^A-Za-z0-9]/.test(v) }
+        ];
+
+        function setFieldState(field, valid, message = '') {
+            field.classList.toggle('is-invalid', !valid);
+            field.classList.toggle('is-valid', valid);
+
+            if (!valid && message) {
+                const feedback = field.parentElement.querySelector('.invalid-feedback');
+                if (feedback) feedback.textContent = message;
+            }
+        }
+
+        function clearState(field) {
+            field.classList.remove('is-invalid', 'is-valid');
+        }
+
+        function validateEmail() {
+            const value = email.value.trim();
+
+            // Email is optional
+            if (!value) {
+                clearState(email);
+                return true;
+            }
+
+            const valid = email.validity.valid &&
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+            setFieldState(email, valid, 'Please enter a valid email address.');
+            return valid;
+        }
+
+        function validateMobile() {
+            const value = mobile.value.trim();
+
+            let message = '';
+
+            if (!value) {
+                message = 'Mobile number is required.';
+            } else if (!/^01[3-9][0-9]{8}$/.test(value)) {
+                message =
+                    'Mobile number must be exactly 11 digits (e.g. 01712345678).';
+            }
+
+            const valid = message === '';
+
+            setFieldState(mobile, valid, message);
+
+            return valid;
+        }
+
+        function validateNidPassport() {
+            const value = nidPassport.value.trim();
+
+            // Optional field: blank is valid
+            if (!value) {
+                clearState(nidPassport);
+                return true;
+            }
+
+            // Bangladesh NID: 10, 13, or 17 digits
+            const isNid = /^(?:\d{10}|\d{13}|\d{17})$/.test(value);
+
+            // Bangladesh passport: allow a 2-letter prefix and 7 digits
+            // Confirm this rule against the passport formats you accept.
+            const isPassport = /^[A-Z]{2}\d{7}$/i.test(value);
+
+            const valid = isNid || isPassport;
+
+            setFieldState(
+                nidPassport,
+                valid,
+                'Enter a valid Bangladesh NID (10, 13, or 17 digits) or passport number.'
+            );
+
+            return valid;
+        }
+
+        function validatePasswordConfirmation() {
+            const p = password.value;
+            const c = confirmPassword.value;
+
+            // Editing: both blank = keep current password
+            if (editing && p === '' && c === '') {
+                clearState(confirmPassword);
+                return true;
+            }
+
+            if (c === '') {
+                if (!editing) {
+                    setFieldState(confirmPassword, false, 'Please confirm your password.');
+                    return false;
+                }
+                clearState(confirmPassword);
+                return true;
+            }
+
+            const valid = p === c;
+            setFieldState(confirmPassword, valid, 'Passwords do not match.');
+            return valid;
+        }
+
+        function validatePassword() {
+            const value = password.value;
+            const optionalBlank = editing && value === '';
+            let allValid = true;
+
+            passwordRules.forEach(rule => {
+                const el = document.getElementById(rule.id);
+                if (!el) return;
+
+                const ok = rule.test(value);
+                const show = ok && !optionalBlank;
+
+                el.classList.toggle('text-success', show);
+                el.classList.toggle('text-danger', !show);
+
+                const icon = el.querySelector('i');
+                if (icon) {
+                    icon.className = show ? 'bi bi-check-circle me-1' : 'bi bi-x-circle me-1';
+                }
+
+                if (!ok) allValid = false;
+            });
+
+            if (optionalBlank) {
+                clearState(password);
+                allValid = true;
+            } else {
+                setFieldState(password, allValid);
+            }
+
+            validatePasswordConfirmation();
+            return allValid;
+        }
+
+        /* ---------------------------------------------------------
+        * Step validation
+        * ------------------------------------------------------- */
+        function validateStep(index, report = true) {
+            const fields = steps[index].querySelectorAll('input, select, textarea');
+            let isValid = true;
+            let firstInvalid = null;
+
+            fields.forEach(field => {
+                if (field.disabled) return;
+
+                // Editing: blank password fields are fine
+                if (
+                    editing &&
+                    (field.id === 'wz-password' || field.id === 'wz-password2') &&
+                    field.value === ''
+                ) {
+                    clearState(field);
+                    return;
+                }
+
+                if (!field.checkValidity()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = field;
+                } else if (!customFields.includes(field)) {
+                    field.classList.remove('is-invalid');
+                }
+            });
+
+            // Custom rules for Account step
+            if (index === 0) {
+                [
+                    [email, validateEmail],
+                    [mobile, validateMobile],
+                    [password, validatePassword],
+                    [confirmPassword, validatePasswordConfirmation]
+                ].forEach(([field, fn]) => {
+                    if (!fn()) {
+                        isValid = false;
+                        if (!firstInvalid) firstInvalid = field;
+                    }
+                });
+            }
+
+            // NID / Passport validation on the step containing that field
+            if (steps[index].contains(nidPassport)) {
+                if (!validateNidPassport()) {
+                    isValid = false;
+
+                    if (!firstInvalid) {
+                        firstInvalid = nidPassport;
+                    }
+                }
+            }
+
+            if (!isValid && report && firstInvalid) {
+                firstInvalid.focus();
+
+                if (!firstInvalid.checkValidity()) {
+                    firstInvalid.reportValidity();
+                }
+            }
+
+            return isValid;
+        }
+
+        /* ---------------------------------------------------------
+        * Navigation
+        * ------------------------------------------------------- */
+        function showStep(index, scroll = true) {
+            currentStep = index;
+
+            steps.forEach((step, i) => step.classList.toggle('d-none', i !== index));
+
+            indicators.forEach((indicator, i) => {
+                indicator.classList.toggle('active', i === index);
+                indicator.classList.toggle('completed', i < index);
+            });
+
+            prevBtn.disabled = index === 0;
+
+            const isLast = index === steps.length - 1;
+            nextBtn.classList.toggle('d-none', isLast);
+            submitBtn.classList.toggle('d-none', !isLast);
+
+            if (isLast) renderSummary();
+
+            if (scroll) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        /* ---------------------------------------------------------
+        * Review summary
+        * ------------------------------------------------------- */
+        function getFieldLabel(field) {
+            const label = field.id
+                ? form.querySelector('label[for="' + CSS.escape(field.id) + '"]')
+                : null;
+
+            if (label) {
+                return label.textContent.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+            }
+
+            return field.name
+                .replace(/\[\]/g, '')
+                .replace(/\[([^\]]+)\]/g, ' $1')
+                .replace(/[_-]/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function addSummaryItem(label, value, type = 'text') {
+            const column = document.createElement('div');
+            column.className = 'col-md-6';
+
+            const card = document.createElement('div');
+            card.className = 'border rounded p-3 h-100';
+
+            const heading = document.createElement('div');
+            heading.className = 'small text-muted mb-1';
+            heading.textContent = label;
+            card.appendChild(heading);
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = value;
+                img.alt = label;
+                img.className = 'img-thumbnail mt-1';
+                img.style.maxWidth = '180px';
+                img.style.maxHeight = '180px';
+                card.appendChild(img);
+            } else {
+                const content = document.createElement('div');
+                content.className = 'fw-semibold text-break';
+                content.style.whiteSpace = 'pre-wrap';
+                content.textContent = value || '—';
+                card.appendChild(content);
+            }
+
+            column.appendChild(card);
+            summary.appendChild(column);
+        }
+
+        function renderSummary() {
+            summary.replaceChildren();
+
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
+            blobUrls = [];
+
+            const fields = form.querySelectorAll('input, select, textarea');
+
+            fields.forEach(field => {
+                if (!field.name || field.disabled) return;
+                if (excludedFields.includes(field.name)) return;
+
+                if (['hidden', 'submit', 'button', 'reset'].includes(field.type)) return;
+
+                if ((field.type === 'radio' || field.type === 'checkbox') && !field.checked) return;
+
+                const label = getFieldLabel(field);
+
+                // ----- File inputs -----
+                if (field.type === 'file') {
+                    const file = field.files && field.files[0];
+
+                    if (file) {
+                        if (file.type.startsWith('image/')) {
+                            const url = URL.createObjectURL(file);
+                            blobUrls.push(url);
+                            addSummaryItem(label + ' (new image)', url, 'image');
+                        } else {
+                            addSummaryItem(label, file.name);
+                        }
+                        return;
+                    }
+
+                    // Image kept from a previous failed submit
+                    const retained = Array.from(
+                        form.querySelectorAll('img[data-retained-image]')
+                    ).find(img => img.dataset.retainedImage === field.name);
+
+                    if (retained) {
+                        addSummaryItem(label + ' (previously uploaded)', retained.src, 'image');
+                        return;
+                    }
+
+                    // Existing image from database (edit mode)
+                    if (editing && existingImages[field.name]) {
+                        addSummaryItem(label + ' (current image)', existingImages[field.name], 'image');
+                    }
+
+                    return;
+                }
+
+                // ----- Normal fields -----
+                let value = '';
+
+                if (field.type === 'checkbox') {
+                    const roleName = field.closest('label')?.querySelector('strong');
+                    value = roleName ? roleName.textContent.trim() : (field.value || 'Yes');
+                } else if (field.tagName === 'SELECT') {
+                    if (field.multiple) {
+                        value = Array.from(field.selectedOptions)
+                            .map(o => o.textContent.trim())
+                            .join(', ');
+                    } else {
+                        value = field.selectedOptions[0]
+                            ? field.selectedOptions[0].textContent.trim().replace(/\s+/g, ' ')
+                            : '';
+                    }
+                    // Skip placeholder option
+                    if (field.value === '') value = '';
+                } else {
+                    value = field.value.trim();
+                }
+
+                if (!value) return;
+
+                addSummaryItem(label, value);
+            });
+
+            if (summary.children.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-muted';
+                empty.textContent = 'No information has been entered yet.';
+                summary.appendChild(empty);
+            }
+        }
+
+        /* ---------------------------------------------------------
+        * Events
+        * ------------------------------------------------------- */
+        nextBtn.addEventListener('click', function () {
+            if (!validateStep(currentStep)) return;
+            if (currentStep < steps.length - 1) showStep(currentStep + 1);
+        });
+
+        prevBtn.addEventListener('click', function () {
+            if (currentStep > 0) showStep(currentStep - 1);
+        });
+
+        // Live validation
+        email.addEventListener('input', validateEmail);
+        email.addEventListener('blur', validateEmail);
+        mobile.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 11);
+            validateMobile();
+        });
+        mobile.addEventListener('blur', validateMobile);
+        password.addEventListener('input', validatePassword);
+        confirmPassword.addEventListener('input', validatePasswordConfirmation);
+        nidPassport.addEventListener('input', validateNidPassport);
+        nidPassport.addEventListener('blur', validateNidPassport);
+
+        // Clear error styling on edit (except fields with live validation)
+        function clearInvalid(event) {
+            if (customFields.includes(event.target)) return;
+            event.target.classList.remove('is-invalid');
+        }
+        form.addEventListener('input', clearInvalid);
+        form.addEventListener('change', clearInvalid);
+
+        // Final submit
+        form.addEventListener('submit', function (event) {
+            for (let i = 0; i < steps.length; i++) {
+                if (!validateStep(i, false)) {
+                    event.preventDefault();
+                    showStep(i);
+                    validateStep(i, true);
+                    return;
+                }
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML =
+                '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Submitting...';
+        });
+
+        /* ---------------------------------------------------------
+        * Lawyer assignment toggle
+        * ------------------------------------------------------- */
+        const statusSelect = document.getElementById('member_status');
+        const wrapper = document.getElementById('lawyer-assignment-wrapper');
+        const lawyerSelect = document.getElementById('lawyer_id');
+
+        if (statusSelect && wrapper && lawyerSelect) {
+            const lawyerRequiredStatuses = ['lawyer_assistant', 'apprentice'];
+
+            const toggleLawyerField = () => {
+                const needsLawyer = lawyerRequiredStatuses.includes(statusSelect.value);
+
+                wrapper.style.display = needsLawyer ? '' : 'none';
+                lawyerSelect.disabled = !needsLawyer;
+                lawyerSelect.required = needsLawyer;
+
+                if (!needsLawyer) lawyerSelect.value = '';
+            };
+
+            statusSelect.addEventListener('change', toggleLawyerField);
+            toggleLawyerField();
+        }
+
+        // Initialize
+        showStep(0, false);
+    });
 </script>

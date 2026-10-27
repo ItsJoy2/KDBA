@@ -343,9 +343,14 @@ class UserController extends Controller
         );
 
         abort_unless(
-            $request->user()?->hasPermission('users.edit'),
+            $request->user()?->hasPermission('users.edit')
+                || $request->user()?->roles()
+                    ->where('slug', 'super-admin')
+                    ->exists(),
             403
         );
+
+        $user = $member;
 
         $disk = Storage::disk('local');
 
@@ -353,10 +358,9 @@ class UserController extends Controller
         $photoUrl = null;
 
         if ($member->photo && $disk->exists($member->photo)) {
-            $photoUrl = 'data:' . $disk->mimeType($member->photo)
-                . ';base64,' . base64_encode(
-                    $disk->get($member->photo)
-                );
+            $photoUrl = 'data:' . ($disk->mimeType($member->photo) ?: 'image/jpeg')
+                . ';base64,'
+                . base64_encode($disk->get($member->photo));
         }
 
         // NID front and back
@@ -365,23 +369,43 @@ class UserController extends Controller
         foreach (['front', 'back'] as $side) {
             $path = data_get($member->nid_images, $side);
 
-            $nidImages[$side] = $path && $disk->exists($path)
-                ? 'data:' . $disk->mimeType($path)
-                    . ';base64,' . base64_encode(
-                        $disk->get($path)
-                    )
+            $nidImages[$side] = (
+                $path && $disk->exists($path)
+            )
+                ? 'data:' . ($disk->mimeType($path) ?: 'image/jpeg')
+                    . ';base64,'
+                    . base64_encode($disk->get($path))
                 : null;
         }
 
-        // Keep the variables required by your existing edit form.
+        // Available roles
         $roles = Role::query()
             ->where('slug', '!=', 'super-admin')
             ->orderBy('name')
             ->get();
 
-        $user->load('roles');
+        // Currently assigned roles
+        $member->load('roles');
 
-        return view('admin.users.show', compact('user','photoUrl','nidImages','roles'));
+        // Eligible lawyers
+        $lawyers = User::query()
+            ->whereIn('member_status', ['member', 'life_member'])
+            ->where('id', '!=', $member->id)
+            ->orderBy('full_name')
+            ->get([
+                'id',
+                'full_name',
+                'membership_number',
+            ]);
+
+        return view('admin.users.edit', compact(
+            'user',
+            'member',
+            'photoUrl',
+            'nidImages',
+            'roles',
+            'lawyers'
+        ));
     }
 
     public function update(

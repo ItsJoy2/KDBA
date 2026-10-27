@@ -121,24 +121,6 @@ class LoginController extends Controller
 
     private function dashboardPath(User $user): string
     {
-        $rolePaths = [
-            'super-admin' => '/dashboard/super-admin',
-            'general-secretary' => '/dashboard/general-secretary',
-            'office-staff' => '/dashboard/office-staff',
-            'member' => '/dashboard/member',
-            'user-apprentice' => '/dashboard/apprentice',
-        ];
-
-        $roles = $user->roles()
-            ->where('roles.is_active', true)
-            ->pluck('roles.slug');
-
-        foreach (array_keys($rolePaths) as $roleSlug) {
-            if ($roles->contains($roleSlug)) {
-                return $rolePaths[$roleSlug];
-            }
-        }
-
-        return '/dashboard';
+        return route('dashboard');
     }
 }

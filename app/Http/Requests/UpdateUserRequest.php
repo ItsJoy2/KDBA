@@ -61,7 +61,8 @@ class UpdateUserRequest extends FormRequest
                 'sometimes',
                 'required',
                 'string',
-                'max:30',
+                'max:11',
+                'regex:/^01[3-9][0-9]{8}$/',
                 Rule::unique('users', 'mobile')->ignore($userId),
             ],
 
@@ -129,7 +130,8 @@ class UpdateUserRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'string',
-                'max:100',
+                'max:17',
+                'regex:/^(?:[0-9]{10}|[0-9]{13}|[0-9]{17}|[A-Za-z]{2}[0-9]{7})$/',
                 Rule::unique('users', 'nid_passport_number')
                     ->ignore($userId),
             ],

@@ -14,7 +14,6 @@
         </a>
     </div>
 
-    Sidebar Search
     {{-- <div class="sidebar-search">
         <label for="sidebar-search-input" class="visually-hidden">
             Filter menu
@@ -79,6 +78,86 @@
                     </li>
                 @endif
 
+
+                {{-- Product Management --}}
+                @if (
+                    auth()->user()->hasPermission('products.view') ||
+                    auth()->user()->hasPermission('products.create')
+                )
+                    <li class="nav-item {{ request()->routeIs('products.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-box-seam-fill"></i>
+                            <p>
+                                Product Management
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                            </p>
+                        </a>
+
+                        <ul class="nav nav-treeview">
+                            @if (auth()->user()->hasPermission('products.view'))
+                                <li class="nav-item">
+                                    <a href="{{ route('products.index') }}"
+                                    class="nav-link {{ request()->routeIs('products.index', 'products.show') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>All Products</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if (auth()->user()->hasPermission('products.create'))
+                                <li class="nav-item">
+                                    <a href="{{ route('products.create') }}"
+                                    class="nav-link {{ request()->routeIs('products.create') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Add Product</p>
+                                    </a>
+                                </li>
+                            @endif
+                        </ul>
+                    </li>
+                @endif
+
+
+                {{-- Order Management --}}
+                @if (
+                    auth()->user()->hasPermission('orders.view') ||
+                    auth()->user()->hasPermission('products.buy')
+                )
+                    <li class="nav-item {{ request()->routeIs('orders.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-cart-fill"></i>
+                            <p>
+                                Order Management
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                            </p>
+                        </a>
+
+                        <ul class="nav nav-treeview">
+                            @if (auth()->user()->hasPermission('orders.view'))
+                                <li class="nav-item">
+                                    <a href="{{ route('orders.index') }}"
+                                    class="nav-link {{ request()->routeIs('orders.index', 'orders.show') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>All Orders</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if (auth()->user()->hasPermission('products.buy'))
+                                <li class="nav-item">
+                                    <a href="{{ route('orders.create') }}"
+                                    class="nav-link {{ request()->routeIs('orders.create') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Place Order</p>
+                                    </a>
+                                </li>
+                            @endif
+                        </ul>
+                    </li>
+                @endif
+
+                
+
                 @if (auth()->user()->hasPermission('roles.view'))
                     <li class="nav-item">
                         <a href="{{ route('roles.index') }}"
@@ -89,96 +168,6 @@
                         </a>
                     </li>
                 @endif
-
-                {{-- Widgets --}}
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon bi bi-box-seam"></i>
-                        <p>
-                            Widgets
-                            <i class="nav-arrow bi bi-chevron-right"></i>
-                        </p>
-                    </a>
-
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="{{ url('/widgets/small-box') }}"
-                               class="nav-link">
-                                <i class="nav-icon bi bi-circle"></i>
-                                <p>Small Box</p>
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="{{ url('/widgets/cards') }}"
-                               class="nav-link">
-                                <i class="nav-icon bi bi-circle"></i>
-                                <p>Cards</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                {{-- Forms --}}
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon bi bi-pencil-square"></i>
-                        <p>
-                            Forms
-                            <i class="nav-arrow bi bi-chevron-right"></i>
-                        </p>
-                    </a>
-
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="{{ url('/forms/elements') }}"
-                               class="nav-link">
-                                <i class="nav-icon bi bi-circle"></i>
-                                <p>Form Elements</p>
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a href="{{ url('/forms/validation') }}"
-                               class="nav-link">
-                                <i class="nav-icon bi bi-circle"></i>
-                                <p>Validation</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                {{-- Tables --}}
-                <li class="nav-item">
-                    <a href="{{ url('/tables') }}" class="nav-link">
-                        <i class="nav-icon bi bi-table"></i>
-                        <p>Tables</p>
-                    </a>
-                </li>
-
-                {{-- Charts --}}
-                <li class="nav-item">
-                    <a href="{{ url('/charts') }}" class="nav-link">
-                        <i class="nav-icon bi bi-graph-up"></i>
-                        <p>Charts</p>
-                    </a>
-                </li>
-
-                <li class="nav-header">PAGES</li>
-
-                <li class="nav-item">
-                    <a href="{{ url('/profile') }}" class="nav-link">
-                        <i class="nav-icon bi bi-person"></i>
-                        <p>Profile</p>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a href="{{ url('/settings') }}" class="nav-link">
-                        <i class="nav-icon bi bi-gear"></i>
-                        <p>Settings</p>
-                    </a>
-                </li>
 
             </ul>
         </nav>
