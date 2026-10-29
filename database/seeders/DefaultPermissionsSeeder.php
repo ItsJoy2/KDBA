@@ -203,7 +203,6 @@ class DefaultPermissionsSeeder extends Seeder
             if ($member) {
                 $memberPermissionIds = DB::table('permissions')
                     ->whereIn('slug', [
-                        'products.view',
                         'products.buy',
                         'orders.view',
                         'orders.view_own',

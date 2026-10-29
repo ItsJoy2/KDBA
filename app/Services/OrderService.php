@@ -116,6 +116,7 @@ class OrderService
 
                 $serials = [];
 
+
                 if ($product->track_serials) {
                     $serials = $line['serials'];
 
@@ -133,12 +134,22 @@ class OrderService
                         ]);
                     }
 
-                    // Product row lock ase, tai ei check race-safe
+                    if (
+                        $product->serial_start === null ||
+                        $product->serial_end === null
+                    ) {
+                        throw ValidationException::withMessages([
+                            "items.{$key}.serials" =>
+                                "{$product->name}: serial range is not configured.",
+                        ]);
+                    }
+
+                    // Check whether any submitted serial has already been sold.
                     $taken = $serialModel->newQuery()
                         ->where('product_id', $product->id)
                         ->whereIn('serial_number', $serials)
                         ->pluck('serial_number')
-                        ->map(fn ($s) => (int) $s)
+                        ->map(fn ($serial) => (int) $serial)
                         ->all();
 
                     if (! empty($taken)) {
@@ -147,11 +158,59 @@ class OrderService
                         foreach ($serials as $i => $serial) {
                             if (in_array($serial, $taken, true)) {
                                 $errors["items.{$key}.serials.{$i}"] =
-                                    "Serial {$serial} is already sold. You cannot buy it.";
+                                    "Serial {$serial} is already sold.";
                             }
                         }
 
                         throw ValidationException::withMessages($errors);
+                    }
+
+                    /*
+                    * Find the last sold serial for this product.
+                    * The product row is already locked by lockForUpdate().
+                    */
+                    $lastSoldSerial = $serialModel->newQuery()
+                        ->where('product_id', $product->id)
+                        ->max('serial_number');
+
+                    // Start from serial_start for the first order.
+                    $expectedSerial = $lastSoldSerial !== null
+                        ? (int) $lastSoldSerial + 1
+                        : (int) $product->serial_start;
+
+                    // Ensure the requested quantity fits within the serial range.
+                    $lastRequiredSerial = $expectedSerial + $quantity - 1;
+
+                    if ($lastRequiredSerial > (int) $product->serial_end) {
+                        throw ValidationException::withMessages([
+                            "items.{$key}.serials" =>
+                                "{$product->name}: not enough serial numbers remain.",
+                        ]);
+                    }
+
+                    // Every serial must match the next expected number.
+                    foreach ($serials as $i => $serial) {
+                        $expected = $expectedSerial + $i;
+
+                        if (
+                            $serial < (int) $product->serial_start ||
+                            $serial > (int) $product->serial_end
+                        ) {
+                            throw ValidationException::withMessages([
+                                "items.{$key}.serials.{$i}" =>
+                                    "Serial {$serial} is outside the allowed range "
+                                    . "({$product->serial_start} - {$product->serial_end}).",
+                            ]);
+                        }
+
+                        if ($serial !== $expected) {
+                            throw ValidationException::withMessages([
+                                "items.{$key}.serials.{$i}" =>
+                                // serial {$expected} is required "
+                                //     . "at this position.
+                                    "{$product->name}: Serial numbers must be sequential.",
+                            ]);
+                        }
                     }
                 } elseif (! empty($line['serials'])) {
                     throw ValidationException::withMessages([
@@ -159,6 +218,7 @@ class OrderService
                             "{$product->name} does not require serial numbers.",
                     ]);
                 }
+
 
                 $priceCents = (int) round((float) $product->selling_price * 100);
                 $totalCents += $priceCents * $quantity;

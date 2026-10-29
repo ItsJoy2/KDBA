@@ -198,9 +198,14 @@
                                                 </td>
 
                                                 <td class="text-nowrap">
-                                                    {{ $order->created_at?->format('d M Y') ?? '—' }}
+                                                    <span data-local="{{ $order->created_at?->toIso8601String() }}" data-format="date">
+                                                        {{ $order->created_at?->format('d M Y') ?? '—' }}
+                                                    </span>
+
                                                     <small class="d-block text-body-secondary">
-                                                        {{ $order->created_at?->format('h:i A') ?? '' }}
+                                                        <span data-local="{{ $order->created_at?->toIso8601String() }}" data-format="time">
+                                                            {{ $order->created_at?->format('h:i A') ?? '' }}
+                                                        </span>
                                                     </small>
                                                 </td>
 
@@ -210,7 +215,7 @@
                                                        title="View order"
                                                        aria-label="View order {{ $order->order_number }}">
                                                         <i class="bi bi-eye" aria-hidden="true"></i>
-                                                        <span class="d-none d-lg-inline">View</span>
+                                                        {{-- <span class="d-none d-lg-inline">View</span> --}}
                                                     </a>
                                                 </td>
                                             </tr>

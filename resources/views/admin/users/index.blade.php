@@ -277,19 +277,23 @@
                                                             </form>
                                                         @endif
 
-                                                        @if (auth()->user()->hasPermission('users.delete')
-                                                            && auth()->id() !== $member->id)
+                                                        @if (
+                                                            auth()->user()->hasPermission('users.delete')
+                                                            && auth()->id() !== $member->id
+                                                        )
                                                             <form method="POST"
                                                                 action="{{ route('users.destroy', $member) }}"
-                                                                onsubmit="return confirm('Are you sure you want to delete this member?')">
+                                                                class="d-inline js-delete-confirm"
+                                                                data-delete-message="Are you sure you want to delete {{ $member->full_name }}? This action cannot be undone.">
+
                                                                 @csrf
                                                                 @method('DELETE')
+
                                                                 <button type="submit"
-                                                                    class="btn btn-outline-danger"
-                                                                    aria-label="Delete {{ $member->full_name }}"
-                                                                    title="Delete">
-                                                                    <i class="bi bi-trash"
-                                                                        aria-hidden="true"></i>
+                                                                        class="btn btn-outline-danger"
+                                                                        aria-label="Delete {{ $member->full_name }}"
+                                                                        title="Delete">
+                                                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                                                 </button>
                                                             </form>
                                                         @endif

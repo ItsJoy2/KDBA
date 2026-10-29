@@ -117,6 +117,17 @@
                     </li>
                 @endif
 
+                {{-- @if (auth()->user()->hasPermission('products.buy')) --}}
+                @unless (auth()->user()->roles()->where('slug', 'super-admin')->exists())
+                    <li class="nav-item">
+                        <a href="{{ route('shop.index') }}"
+                        class="nav-link {{ request()->routeIs('shop.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-shop"></i>
+                            <p>Shop</p>
+                        </a>
+                    </li>
+                @endunless
+                {{-- @endif --}}
 
                 {{-- Order Management --}}
                 @if (
@@ -143,7 +154,7 @@
                                 </li>
                             @endif
 
-                            @if (auth()->user()->hasPermission('products.buy'))
+                            @if (auth()->user()->hasPermission('products.buy_for_others'))
                                 <li class="nav-item">
                                     <a href="{{ route('orders.create') }}"
                                     class="nav-link {{ request()->routeIs('orders.create') ? 'active' : '' }}">
@@ -155,8 +166,6 @@
                         </ul>
                     </li>
                 @endif
-
-                
 
                 @if (auth()->user()->hasPermission('roles.view'))
                     <li class="nav-item">

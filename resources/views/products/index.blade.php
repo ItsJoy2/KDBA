@@ -169,7 +169,7 @@
                                                          aria-label="Product actions">
 
                                                         {{-- View --}}
-                                                        @if (auth()->user()->hasPermission('products.view'))
+                                                        {{-- @if (auth()->user()->hasPermission('products.view'))
                                                             <a href="{{ route('products.show', $product) }}"
                                                                class="btn btn-outline-primary"
                                                                title="View"
@@ -177,7 +177,7 @@
                                                                 <i class="bi bi-eye"
                                                                    aria-hidden="true"></i>
                                                             </a>
-                                                        @endif
+                                                        @endif --}}
 
                                                         {{-- Edit --}}
                                                         @if (auth()->user()->hasPermission('products.edit'))
@@ -193,8 +193,10 @@
                                                         {{-- Delete --}}
                                                         @if (auth()->user()->hasPermission('products.delete'))
                                                             <form method="POST"
-                                                                  action="{{ route('products.destroy', $product) }}"
-                                                                  onsubmit="return confirm('Are you sure you want to delete this product?')">
+                                                                action="{{ route('products.destroy', $product) }}"
+                                                                class="d-inline js-delete-confirm"
+                                                                data-delete-message="Are you sure you want to delete {{ $product->name }}? This action cannot be undone.">
+
                                                                 @csrf
                                                                 @method('DELETE')
 
@@ -202,8 +204,7 @@
                                                                         class="btn btn-outline-danger"
                                                                         title="Delete"
                                                                         aria-label="Delete {{ $product->name }}">
-                                                                    <i class="bi bi-trash"
-                                                                       aria-hidden="true"></i>
+                                                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                                                 </button>
                                                             </form>
                                                         @endif

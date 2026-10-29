@@ -36,8 +36,6 @@
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 rounded-3"
          role="alert">
-        <strong><i class="bi bi-exclamation-circle me-2"></i>Please fix the following errors:</strong>
-
         <ul class="mb-0 mt-2">
             @foreach ($errors->all() as $error)
                 <li>{{ $error }}</li>
