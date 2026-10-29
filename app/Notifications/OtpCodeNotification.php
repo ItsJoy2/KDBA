@@ -12,7 +12,8 @@ class OtpCodeNotification extends Notification
 
     public function __construct(
         private readonly string $code,
-        private readonly string $purpose
+        private readonly string $purpose,
+        private readonly ?string $resetUrl = null,
     ) {
     }
 
@@ -23,12 +24,27 @@ class OtpCodeNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
-            ->subject('Your verification code')
+        $mail = (new MailMessage())
+            ->subject(
+                $this->purpose === 'password_reset'
+                    ? 'Password Reset Verification'
+                    : 'Your verification code'
+            )
             ->greeting('Hello,')
             ->line('Your verification code is: ' . $this->code)
             ->line('This code expires in 5 minutes.')
-            ->line('Do not share this code with anyone.')
-            ->line('If you did not request this code, you can ignore this email.');
+            ->line('Do not share this code with anyone.');
+
+        if ($this->resetUrl !== null) {
+            $mail
+                ->action('Reset Password', $this->resetUrl)
+                ->line('If the button does not work, open this link:')
+                ->line($this->resetUrl);
+        }
+
+        return $mail
+            ->line(
+                'If you did not request this code, you can ignore this email.'
+            );
     }
 }

@@ -9,19 +9,9 @@ use Illuminate\View\View;
 
 class ProductShowcaseController extends Controller
 {
-
     public function index(Request $request): View
     {
         $user = $request->user();
-
-        abort_if(
-            $user->roles()
-                ->where('roles.slug', 'super-admin')
-                ->where('roles.is_active', true)
-                ->exists(),
-            403,
-            'Product showcase is not available for Super Admin.'
-        );
 
         $products = Product::query()
             ->where('status', 'active')
@@ -30,11 +20,15 @@ class ProductShowcaseController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        $canOrder = $this->canPlaceOrder($user);
+        $canOrder = $user
+            && in_array($user->member_status, [
+                'member',
+                'life_member',
+            ], true)
+            && $user->hasPermission('products.buy');
 
         return view('shop.index', compact('products', 'canOrder'));
     }
-
 
     public function orderHistory(Request $request): View
     {
@@ -52,15 +46,4 @@ class ProductShowcaseController extends Controller
 
         return view('shop.orders', compact('orders'));
     }
-
-    private function canPlaceOrder($user): bool
-    {
-        return in_array(
-            $user->status,
-            ['Active', 'Life Member'],
-            true
-        );
-    }
-
-    
 }

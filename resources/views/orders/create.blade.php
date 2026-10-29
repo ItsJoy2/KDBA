@@ -33,7 +33,7 @@
                         {{-- Order Recipient --}}
                         @if ($canOrderForOthers)
                             <div class="card border-0 shadow-sm mb-4">
-                                <div class="card-header bg-white py-3">
+                                <div class="card-header py-3">
                                     <h5 class="mb-0 fw-semibold">
                                         <i class="bi bi-person-search me-2 text-primary"></i>
                                         Order Recipient
@@ -84,7 +84,7 @@
 
                         {{-- Product Search --}}
                         <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-header bg-white py-3">
+                            <div class="card-header py-3">
                                 <h5 class="mb-0 fw-semibold">
                                     <i class="bi bi-search me-2 text-primary"></i>
                                     Search Products
@@ -121,7 +121,7 @@
 
                         {{-- Selected Products --}}
                         <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
                                 <h5 class="mb-0 fw-semibold">
                                     <i class="bi bi-cart3 me-2 text-primary"></i>
                                     Selected Products
@@ -147,7 +147,7 @@
                                         id="selectedProductsTable"
                                         style="display:none;"
                                     >
-                                        <thead class="table-light">
+                                        <thead>
                                             <tr>
                                                 <th>Product</th>
                                                 <th class="text-end">Price</th>
@@ -161,7 +161,7 @@
 
                                         <tbody id="selectedProductsBody"></tbody>
 
-                                        <tfoot class="table-light">
+                                        <tfoot>
                                             <tr>
                                                 <th colspan="5" class="text-end">
                                                     Order Total

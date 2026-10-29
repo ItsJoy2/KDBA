@@ -169,6 +169,20 @@
                     </li>
                 @endif
 
+                @if(
+                    auth()->user()?->hasPermission('cache.clear')
+                    || auth()->user()?->roles()->where('slug', 'super-admin')->exists()
+                )
+                    <li class="nav-item">
+                        <a
+                            href="{{ route('system.cache.index') }}"
+                            class="nav-link {{ request()->routeIs('admin.system.cache.*') ? 'active' : '' }}"
+                        >
+                            <i class="nav-icon bi bi-arrow-repeat"></i>
+                            <p>Cache Management</p>
+                        </a>
+                    </li>
+                @endif
             </ul>
         </nav>
     </div>

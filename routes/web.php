@@ -9,25 +9,13 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
-use App\Http\Controllers\Auth\TwoFactorController;
-use App\Http\Controllers\Dashboard\ApprenticeDashboardController;
 use App\Http\Controllers\Dashboard\DashboardController;
-use App\Http\Controllers\Dashboard\GeneralSecretaryDashboardController;
-use App\Http\Controllers\Dashboard\MemberDashboardController;
-use App\Http\Controllers\Dashboard\OfficeStaffDashboardController;
-use App\Http\Controllers\Dashboard\SuperAdminDashboardController;
 use App\Http\Controllers\OrderController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\CacheManagementController;
 use App\Http\Controllers\ProductShowcaseController;
-
-
-
-
-
-
-
-
-
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\TwoStepVerificationController;
+use Illuminate\Support\Facades\Route;
 
 
 
@@ -35,19 +23,23 @@ use App\Http\Controllers\ProductShowcaseController;
 
 Route::get('/', fn () => view('welcome'))->name('home');
 
+
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login')->name('login.store');
 
-    Route::get('/two-factor', [TwoFactorController::class, 'create'])->name('auth.2fa.create');
-    Route::post('/two-factor', [TwoFactorController::class, 'store'])->middleware('throttle:two-factor')->name('auth.2fa.verify');
+    Route::get('/login', [LoginController::class, 'create',])->name('login');
+    Route::post('/login', [LoginController::class, 'store',])->middleware('throttle:login')->name('login.store');
+    Route::get('/forgot-password', [PasswordResetController::class, 'requestForm',])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendLink',])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/reset-password', [PasswordResetController::class, 'resetForm',])->name('password.reset');
+    Route::post('/reset-password/verify-otp', [PasswordResetController::class,'verifyResetOtp'])->middleware('throttle:5,1')->name('password.verify-otp');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset',])->middleware('throttle:5,1')->name('password.update');
+    Route::prefix('login/verify')->name('auth.2fa.')->controller(TwoStepVerificationController::class)->group(function () {
+        Route::get('/', 'create')->name('create');
+        Route::post('/', 'verifyLogin')->middleware('throttle:5,1')->name('store');
+    });
 
-    Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:password-reset')->name('password.email');
-
-    Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
-    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1')->name('password.update');
 });
+
 
 
 Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden'])->group(function () {
@@ -124,7 +116,31 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
 
     Route::prefix('shop')->name('shop.')->controller(ProductShowcaseController::class)->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('/my-orders', 'orderHistory')->name('orders');
+        // Route::get('/my-orders', 'orderHistory')->name('orders');
     });
+
+    Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::get('/password', 'editPassword')->name('password.edit');
+        Route::put('/password', 'updatePassword')->name('password.update');
+        // Route::get('/two-factor', 'showTwoFactor')->name('two-factor.show');
+        // Route::post('/two-factor/enable', 'enableTwoFactor')->middleware('throttle:5,1')->name('two-factor.enable');
+        // Route::post('/two-factor/verify', 'verifyTwoFactor')->middleware('throttle:5,1')->name('two-factor.verify');
+        // Route::delete('/two-factor', 'disableTwoFactor')->middleware('throttle:5,1')->name('two-factor.disable');
+
+        Route::prefix('two-step-verification')->name('two-factor.')->controller(TwoStepVerificationController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/authenticator/setup', 'setupAuthenticator')->middleware('throttle:5,1')->name('authenticator.setup');
+            Route::post('/authenticator/confirm', 'confirmAuthenticator')->middleware('throttle:5,1')->name('authenticator.confirm');
+            Route::post('/authenticator/disable', 'disableAuthenticator')->middleware('throttle:5,1')->name('authenticator.disable');
+            Route::post('/sms/setup', 'setupSms')->name('sms.setup');
+        });
+    });
+
+    Route::prefix('system/cache')->name('system.cache.')->group(function () {
+        Route::get('/', [CacheManagementController::class,'index',])->name('index');
+        Route::post('/clear', [CacheManagementController::class,'clear',])->name('clear');
+    });
+    
 
 });

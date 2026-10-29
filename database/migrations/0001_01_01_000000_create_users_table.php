@@ -39,6 +39,10 @@ return new class extends Migration
             $table->string('last_login_ip', 45)->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('two_factor_phone', 20)->nullable();
+            $table->timestamp('two_factor_phone_verified_at')->nullable();
+            $table->text('two_factor_authenticator_secret')->nullable();
+            $table->timestamp('two_factor_authenticator_confirmed_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['status', 'created_at']);

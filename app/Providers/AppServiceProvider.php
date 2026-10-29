@@ -7,6 +7,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -86,6 +87,60 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('hasAssistants', $hasAssistants);
         });
+
+        View::composer('layouts.partials.__header', function ($view) {
+        $user = Auth::user();
+
+        $headerPhotoUrl = null;
+        $headerUserName = 'User';
+        $headerInitials = 'U';
+
+        if ($user) {
+            $headerUserName = $user->full_name
+                ?: ($user->name ?: 'User');
+
+            $nameParts = preg_split(
+                '/\s+/u',
+                trim($headerUserName),
+                -1,
+                PREG_SPLIT_NO_EMPTY
+            );
+
+            $headerInitials = collect($nameParts)
+                ->take(2)
+                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+                ->implode('');
+
+            $headerInitials = $headerInitials ?: 'U';
+
+            $photoPath = $user->photo;
+
+            if ($photoPath) {
+                $disk = Storage::disk('local');
+
+                if ($disk->exists($photoPath)) {
+                    $mimeType = $disk->mimeType($photoPath);
+
+                    if (in_array($mimeType, [
+                        'image/jpeg',
+                        'image/png',
+                        'image/webp',
+                        'image/gif',
+                    ], true)) {
+                        $headerPhotoUrl = 'data:' . $mimeType
+                            . ';base64,'
+                            . base64_encode($disk->get($photoPath));
+                    }
+                }
+            }
+        }
+
+        $view->with([
+            'headerPhotoUrl' => $headerPhotoUrl,
+            'headerUserName' => $headerUserName,
+            'headerInitials' => $headerInitials,
+        ]);
+    });
     }
     
 }

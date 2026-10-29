@@ -33,7 +33,6 @@ class RoleDelegationPermissionSeeder extends Seeder
             );
         }
 
-        // Super Admin-কে permission দুটো দেওয়া
         $superAdmin = Role::where('slug', 'super-admin')->first();
 
         if ($superAdmin) {

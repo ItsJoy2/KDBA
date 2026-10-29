@@ -59,6 +59,9 @@ class User extends Authenticatable
             'sanad_date' => 'date',
             'nid_images' => 'array',
             'two_factor_enabled' => 'boolean',
+            'two_factor_phone_verified_at' => 'datetime',
+            'two_factor_authenticator_secret' => 'encrypted',
+            'two_factor_authenticator_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
         ];
     }
@@ -140,6 +143,23 @@ class User extends Authenticatable
     public function hasAssistants(): bool
     {
         return $this->assistants()->exists();
+    }
+    public function hasTwoFactorPhone(): bool
+    {
+        return filled($this->two_factor_phone)
+            && $this->two_factor_phone_verified_at !== null;
+    }
+
+    public function hasTwoFactorAuthenticator(): bool
+    {
+        return filled($this->two_factor_authenticator_secret)
+            && $this->two_factor_authenticator_confirmed_at !== null;
+    }
+
+    public function hasConfiguredTwoFactorMethod(): bool
+    {
+        return $this->hasTwoFactorPhone()
+            || $this->hasTwoFactorAuthenticator();
     }
 
 }

@@ -27,34 +27,22 @@ class PasswordResetService
     /**
      * Reset the password using a valid, unexpired broker token.
      */
-    public function resetPassword(array $credentials): string
+    public function resetPassword(array $data): string
     {
-        $status = Password::broker('users')->reset(
+        return Password::broker('users')->reset(
             [
-                'email' => $credentials['email'],
-                'token' => $credentials['token'],
-                'password' => $credentials['password'],
-                'password_confirmation' =>
-                    $credentials['password_confirmation'],
+                'email' => $data['email'],
+                'token' => $data['token'],
+                'password' => $data['password'],
             ],
-            function (User $user, string $password): void {
+            function ($user, string $password) {
                 $user->forceFill([
                     'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+                ]);
 
-                event(new PasswordReset($user));
+                $user->setRememberToken(Str::random(60));
+                $user->save();
             }
         );
-
-        if ($status !== Password::PASSWORD_RESET) {
-            throw ValidationException::withMessages([
-                'email' => [
-                    __($status),
-                ],
-            ]);
-        }
-
-        return $status;
     }
 }

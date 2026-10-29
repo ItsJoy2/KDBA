@@ -6,7 +6,7 @@
     <strong>
         Copyright &copy; {{ date('Y') }}
         <a href="/" class="text-decoration-none">
-            Khagrachari Bar Association
+            Khagrachari District Bar Association
         </a>.
     </strong>
 

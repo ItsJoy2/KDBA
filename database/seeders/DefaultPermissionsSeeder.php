@@ -138,6 +138,10 @@ class DefaultPermissionsSeeder extends Seeder
                 'name' => 'Update Order Status (Legacy)',
                 'description' => 'Legacy permission for updating order status.',
             ],
+            
+            'cache' => [
+                'clear',
+            ],
         ];
 
         DB::transaction(function () use ($modules, $customPermissions): void {
@@ -193,7 +197,6 @@ class DefaultPermissionsSeeder extends Seeder
                 );
             }
 
-            // Ensure the standard Member role has only the required
             // product purchasing and order viewing permissions.
             $member = Role::where('slug', 'member')->first();
 

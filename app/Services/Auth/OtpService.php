@@ -28,13 +28,20 @@ class OtpService
             ]);
         }
 
-        if (!in_array(
-            $purpose,
-            ['login_2fa', 'password_reset', 'email_verification'],
-            true
-        )) {
+        $allowedPurposes = [
+            'login_2fa',
+            'password_reset',
+            'email_verification',
+            'two_factor_setup',
+            'two_factor_disable',
+            'two_factor_phone_verify',
+        ];
+
+        if (!in_array($purpose, $allowedPurposes, true)) {
             throw ValidationException::withMessages([
-                'purpose' => ['Unsupported OTP purpose.'],
+                'purpose' => [
+                    "Unsupported OTP purpose: {$purpose}",
+                ],
             ]);
         }
 
@@ -47,16 +54,16 @@ class OtpService
             ]);
         }
 
-        if ($channel === 'sms' && !preg_match(
-            '/^\+[1-9]\d{7,14}$/',
-            $destination
-        )) {
-            throw ValidationException::withMessages([
-                'destination' => [
-                    'Provide a valid E.164 mobile number.',
-                ],
-            ]);
-        }
+    if (
+        $channel === 'sms'
+        && !preg_match('/^\+[1-9]\d{7,14}$/', $destination)
+    ) {
+        throw ValidationException::withMessages([
+            'destination' => [
+                'Provide a valid E.164 mobile number, e.g. +8801XXXXXXXXX.',
+            ],
+        ]);
+    }
 
         $code = (string) random_int(100000, 999999);
 

@@ -14,16 +14,16 @@
                 </a>
             </li>
 
-            <li class="nav-item d-none d-md-block">
+            {{-- <li class="nav-item d-none d-md-block">
                 <a href="{{ route('dashboard') }}" class="nav-link">
                     <i class="bi bi-grid-1x2 me-1"></i>
                     Dashboard
                 </a>
-            </li>
+            </li> --}}
         </ul>
 
         {{-- Search --}}
-        <form class="navbar-search d-none d-xl-block ms-3"
+        {{-- <form class="navbar-search d-none d-xl-block ms-3"
               role="search"
               action="{{ url('/search') }}"
               method="GET">
@@ -44,13 +44,13 @@
                     <i class="bi bi-search"></i>
                 </button>
             </div>
-        </form>
+        </form> --}}
 
         {{-- Right Navbar --}}
         <ul class="navbar-nav ms-auto">
 
             {{-- Notifications --}}
-            <li class="nav-item dropdown">
+            {{-- <li class="nav-item dropdown">
                 <a class="nav-link"
                    href="#"
                    data-bs-toggle="dropdown"
@@ -84,7 +84,7 @@
                         See All Notifications
                     </a>
                 </div>
-            </li>
+            </li> --}}
 
             {{-- Theme --}}
             <li class="nav-item dropdown">
@@ -110,54 +110,93 @@
                 </ul>
             </li>
 
+
             {{-- User Menu --}}
             <li class="nav-item dropdown user-menu">
                 <a href="#"
-                   class="nav-link dropdown-toggle"
-                   data-bs-toggle="dropdown">
+                class="nav-link dropdown-toggle d-flex align-items-center gap-2"
+                data-bs-toggle="dropdown"
+                aria-expanded="false">
 
-                    <img
-                        src="{{ asset('assets/adminlte/img/user2-160x160.jpg') }}"
-                        class="user-image rounded-circle shadow"
-                        alt="User avatar"
-                    >
+                    @if ($headerPhotoUrl)
+                        <img
+                            src="{{ $headerPhotoUrl }}"
+                            class="user-image rounded-circle shadow"
+                            alt="{{ $headerUserName }}"
+                            width="32"
+                            height="32"
+                            style="object-fit: cover;"
+                        >
+                    @else
+                        <span
+                            class="user-image rounded-circle shadow bg-primary text-white
+                                d-inline-flex align-items-center justify-content-center
+                                fw-bold"
+                            style="width: 32px; height: 32px; font-size: 12px;"
+                            aria-label="{{ $headerUserName }}"
+                        >{{ $headerInitials }}</span>
+                    @endif
 
                     <span class="d-none d-md-inline">
-                        {{ auth()->user()->name ?? 'Admin User' }}
+                        {{ $headerUserName }}
                     </span>
                 </a>
 
                 <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
+
+                    {{-- User Header --}}
                     <li class="user-header text-bg-primary">
-                        <img
-                            src="{{ asset('assets/adminlte/img/user2-160x160.jpg') }}"
-                            class="rounded-circle shadow"
-                            alt="User avatar"
-                        >
+
+                        @if ($headerPhotoUrl)
+                            <img
+                                src="{{ $headerPhotoUrl }}"
+                                class="rounded-circle shadow"
+                                alt="{{ $headerUserName }}"
+                                width="90"
+                                height="90"
+                                style="object-fit: cover;"
+                            >
+                        @else
+                            <span
+                                class="rounded-circle shadow bg-white text-primary
+                                    d-inline-flex align-items-center justify-content-center
+                                    fw-bold"
+                                style="width: 90px; height: 90px; font-size: 28px;"
+                                aria-label="{{ $headerUserName }}"
+                            >{{ $headerInitials }}</span>
+                        @endif
+
                         <p>
-                            {{ auth()->user()->name ?? 'Admin User' }}
-                            <small>Administrator</small>
+                            {{ $headerUserName }}
+                            <small>
+                                {{ auth()->user()?->member_status
+                                    ? str_replace('_', ' ', ucfirst(auth()->user()->member_status))
+                                    : 'Member' }}
+                            </small>
                         </p>
                     </li>
 
-                    <li class="user-footer">
+                    {{-- User Footer --}}
+                    <li class="user-footer d-flex justify-content-between align-items-center gap-2">
                         <a href="{{ url('/profile') }}"
-                           class="btn btn-outline-secondary">
+                        class="btn btn-outline-secondary">
+                            <i class="bi bi-person me-1"></i>
                             Profile
                         </a>
 
-                        <form action="{{ url('/logout') }}"
-                              method="POST"
-                              class="float-end">
+                        <form action="{{ url('/logout') }}" method="POST">
                             @csrf
-                            <button type="submit"
-                                    class="btn btn-outline-danger">
+
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-box-arrow-right me-1"></i>
                                 Sign out
                             </button>
                         </form>
                     </li>
+
                 </ul>
             </li>
+
 
         </ul>
     </div>

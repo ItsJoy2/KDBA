@@ -5,21 +5,13 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
-use App\Notifications\OtpCodeNotification;
-use App\Services\Auth\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    public function __construct(
-        private readonly OtpService $otpService
-    ) {
-    }
-
     public function create()
     {
         return view('auth.login');
@@ -37,14 +29,15 @@ class LoginController extends Controller
             ->where($field, $identifier)
             ->first();
 
-        // Use the same generic error for unknown accounts and
-        // incorrect passwords to reduce account enumeration.
         if (
             !$user
-            || !Hash::check($request->input('password'), $user->password)
+            || !Hash::check(
+                $request->input('password'),
+                $user->password
+            )
             || !in_array(
                 $user->status,
-                ['Active', 'Life Member',],
+                ['Active', 'Life Member'],
                 true
             )
         ) {
@@ -55,46 +48,52 @@ class LoginController extends Controller
             ]);
         }
 
-        if ($user->two_factor_enabled) {
-            // Until the OTP is verified, do not authenticate the user.
-            if (!$user->email) {
-                throw ValidationException::withMessages([
-                    'login' => [
-                        'Two-factor authentication is not configured correctly for this account.',
-                    ],
-                ]);
-            }
+        /*
+         * Do not authenticate until the required 2FA check succeeds.
+         */
+        $authenticatorEnabled = $user->hasTwoFactorAuthenticator();
+        $smsEnabled = $user->hasTwoFactorPhone();
 
-            $code = $this->otpService->issue(
-                $user,
-                'login_2fa',
-                'email',
-                $user->email
-            );
-
-            try {
-                Notification::route('mail', $user->email)
-                    ->notify(new OtpCodeNotification($code, 'login_2fa'));
-            } catch (\Throwable $exception) {
-                report($exception);
-
-                throw ValidationException::withMessages([
-                    'login' => [
-                        'We could not send the verification code. Please try again later.',
-                    ],
-                ]);
-            }
-
+        if ($user->two_factor_enabled && (
+            $authenticatorEnabled || $smsEnabled
+        )) {
             $request->session()->regenerate();
 
             $request->session()->put([
                 'auth.pending_user_id' => $user->id,
                 'auth.pending_remember' => $request->boolean('remember'),
-                'auth.pending_expires_at' => now()->addMinutes(5)->timestamp,
+                'auth.pending_method' => $authenticatorEnabled
+                    ? 'authenticator'
+                    : 'sms',
+                'auth.pending_expires_at' => now()
+                    ->addMinutes(5)
+                    ->timestamp,
             ]);
-            return redirect()->route('auth.2fa.create')
-                ->with('status', 'A verification code has been sent.');
+
+            /*
+             * Authenticator takes priority when both methods are enabled.
+             * No email OTP is generated or sent.
+             */
+            if ($authenticatorEnabled) {
+                return redirect()->route('auth.2fa.create');
+            }
+
+            /*
+             * SMS delivery must be implemented using your SMS provider.
+             * Do not silently fall back to email.
+             */
+            return redirect()->route('auth.2fa.create');
         }
+
+        /*
+         * If 2FA is off, log in directly.
+         */
+        $request->session()->forget([
+            'auth.pending_user_id',
+            'auth.pending_remember',
+            'auth.pending_method',
+            'auth.pending_expires_at',
+        ]);
 
         Auth::login($user, $request->boolean('remember'));
 
@@ -121,6 +120,7 @@ class LoginController extends Controller
 
     private function dashboardPath(User $user): string
     {
+        // Keep your existing role-based dashboard redirect here.
         return route('dashboard');
     }
 }

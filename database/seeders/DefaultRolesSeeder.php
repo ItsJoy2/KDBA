@@ -12,10 +12,10 @@ class DefaultRolesSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            'system' => [
-                'name' => 'System',
-                'description' => 'Protected system role.',
-            ],
+            // 'system' => [
+            //     'name' => 'System',
+            //     'description' => 'Protected system role.',
+            // ],
 
             'super-admin' => [
                 'name' => 'Super Admin',
