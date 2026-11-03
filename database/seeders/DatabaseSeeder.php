@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             DefaultPermissionsSeeder::class,
             DefaultRolesSeeder::class,
             DefaultSuperAdminSeeder::class,
+            MembershipFeeSettingsSeeder::class,
+            PaymentGatewaySeeder::class,
         ]);
     }
 }

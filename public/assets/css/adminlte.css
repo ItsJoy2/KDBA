@@ -16071,3 +16071,56 @@ fieldset legend {
 }
 
 /*# sourceMappingURL=adminlte.css.map */
+
+.login-logo {
+    margin: 0 0 1.4rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+.login-logo a {
+    display: inline-flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    text-align: left;
+}
+
+.login-logo .logo {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-logo .logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.login-logo-text {
+    font-family: var(--serif, Georgia, serif);
+    font-size: 1.2rem;
+    line-height: 1.1;
+}
+
+.login-logo-text small {
+    display: block;
+    margin-top: .2rem;
+    font-family: var(--sans, system-ui, sans-serif);
+    font-size: .64rem;
+    letter-spacing: .06em;
+    color: var(--gold-2, #d69328);
+}
+
+@media (max-width: 575px) {
+    .login-logo-text { font-size: 1rem; }
+    .login-logo-text small { font-size: .56rem; }
+}

@@ -61,6 +61,29 @@ class DefaultPermissionsSeeder extends Seeder
                 'status_update',
                 'update_status',
             ],
+
+            'fees' => [
+                'manage',
+            ],
+
+            'gateways' => [
+                'manage',
+            ],
+
+            'invoices' => [
+                'view',
+                'create',
+                'pay',
+            ],
+
+            'transactions' => [
+                'view',
+                'verify',
+            ],
+
+            // 'settings' => [
+            //     'manage',
+            // ],
         ];
 
         $customPermissions = [

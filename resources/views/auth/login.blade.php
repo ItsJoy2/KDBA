@@ -7,11 +7,17 @@
 
 <body class="login-page bg-body-secondary">
     <main class="login-box">
-        <h1 class="login-logo">
+        <div class="login-logo">
             <a href="{{ route('login') }}">
-                <b>KD</b>BA
+                <span class="logo">
+                    <img src="{{ asset('assets/images/KDBA.png') }}" alt="Khagrachari District Bar Association logo" width="44" height="44">
+                </span>
+                <span class="login-logo-text">
+                    Khagrachari District Bar Association
+                    <small>ESTABLISHED FOR JUSTICE &amp; THE RULE OF LAW</small>
+                </span>
             </a>
-        </h1>
+        </div>
 
         <div class="card">
             <div class="card-body login-card-body">

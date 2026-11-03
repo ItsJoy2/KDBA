@@ -162,4 +162,19 @@ class User extends Authenticatable
             || $this->hasTwoFactorAuthenticator();
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function paymentTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function verifiedTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'verified_by');
+    }
+
 }

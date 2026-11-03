@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\LawyerAssistantController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\ProductSerialController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
@@ -15,13 +14,25 @@ use App\Http\Controllers\Admin\CacheManagementController;
 use App\Http\Controllers\ProductShowcaseController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\TwoStepVerificationController;
+use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\MembershipFeeController;
+use App\Http\Controllers\Admin\PaymentGatewayController;
+use App\Http\Controllers\Admin\PaymentTransactionController;
 use Illuminate\Support\Facades\Route;
 
 
 
 
 
-Route::get('/', fn () => view('welcome'))->name('home');
+Route::get('/', fn () => view('cms.pages.home'))->name('home');
+Route::get('/about', fn () => view('cms.pages.about'))->name('about');
+Route::get('/contact', fn () => view('cms.pages.contact'))->name('contact');
+Route::get('/articles', fn () => view('cms.pages.articles'))->name('articles');
+Route::get('/notices', fn () => view('cms.pages.notices'))->name('notices');
+Route::get('/committee', fn () => view('cms.pages.committees'))->name('committee');
+Route::get('/events', fn () => view('cms.pages.events'))->name('events');
+Route::get('/single-article', fn () => view('cms.pages.single-article'))->name('articles.show');
+
 
 
 Route::middleware('guest')->group(function () {
@@ -99,7 +110,6 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::get('/{product}/edit', 'edit')->whereNumber('product')->middleware('permission:products.edit')->name('edit');
         Route::put('/{product}', 'update')->whereNumber('product')->middleware('permission:products.edit')->name('update');
         Route::delete('/{product}', 'destroy')->whereNumber('product')->middleware('permission:products.delete')->name('destroy');
-        Route::post('/{product}/serials',[ProductSerialController::class, 'store'])->whereNumber('product')->middleware('permission:products.manage_serials')->name('serials.store');
     });
 
     Route::prefix('orders')->name('orders.')->controller(OrderController::class)->group(function () {
@@ -142,5 +152,35 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::post('/clear', [CacheManagementController::class,'clear',])->name('clear');
     });
     
+    Route::prefix('admin/')->name('admin.')->group(function(){
+
+        Route::prefix('membership-fees')->name('membership-fees.')->controller(MembershipFeeController::class)->group(function () {
+            Route::get('/')->middleware('permission:fees.manage')->name('index');
+            Route::put('/')->middleware('permission:fees.manage')->name('update');
+        });
+
+        Route::prefix('payment-gateways')->name('payment-gateways.')->controller(PaymentGatewayController::class)->group(function () {
+            Route::get('/')->middleware('permission:gateways.manage')->name('index');
+            Route::post('/')->middleware('permission:gateways.manage')->name('store');
+            Route::put('/{gateway}')->middleware('permission:gateways.manage')->name('update');
+            Route::delete('/{gateway}')->middleware('permission:gateways.manage')->name('destroy');
+        });
+
+
+        Route::prefix('invoices')->name('invoices.')->controller(InvoiceController::class)->group(function () {
+            Route::get('/')->middleware('permission:invoices.view')->name('index');
+            Route::post('/')->middleware('permission:invoices.create')->name('store');
+        });
+
+        Route::prefix('payment-transactions')->name('payment-transactions.')->controller(PaymentTransactionController::class)->group(function () {
+            Route::get('/')->middleware('permission:transactions.view')->name('index');
+            Route::post('/{transaction}/verify', 'verify')->middleware('permission:transactions.verify')->name('verify');
+        });
+    });
+    Route::prefix('member/invoices')->name('member.invoices.')->controller(InvoiceController::class)->group(function () {
+        Route::get('/', 'myInvoices')->name('index');
+        Route::post('/{invoice}/payment', 'submitPayment')->middleware('permission:invoices.pay')->name('payment.submit');
+    });
+
 
 });
