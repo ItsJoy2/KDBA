@@ -142,7 +142,7 @@
         </div>
 
         <div class="card-footer">
-            {{ $transactions->links('admin.layouts.partials.pagination-links') }}
+            @include('layouts.partials.__pagination', ['items' => $transactions])
         </div>
     </div>
 </div>

@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Invoice;
+use App\Models\PaymentGateway;
+use App\Models\Role;
 use App\Models\User;
+use App\Services\Membership\MembershipFeeService;
+use App\Services\Rbac\PermissionService;
 use App\Services\UserManagementService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,8 +21,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use App\Models\Role;
-use App\Services\Rbac\PermissionService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -130,8 +134,12 @@ class UserController extends Controller
 
             return $member;
         });
+        $paymentGateways = PaymentGateway::query()
+        ->where('is_active', true)
+        ->orderBy('sort_order')
+        ->get(['id', 'name', 'account_number']);
 
-        return view('admin.users.index', compact('users', 'filters'));
+        return view('admin.users.index', compact('users', 'filters', 'paymentGateways'));
     }
 
     public function create(Request $request): View
@@ -154,15 +162,10 @@ class UserController extends Controller
         return view('admin.users.create', compact('roles', 'lawyers'));
     }
 
-    public function store(
-        StoreUserRequest $request,
-        PermissionService $permissionService
-    ): RedirectResponse {
+    public function store(StoreUserRequest $request, PermissionService $permissionService): RedirectResponse {
         $actor = $request->user();
         $data = $request->validated();
 
-        // Authorization: restrict lawyer accounts to creating
-        // their own lawyer assistants.
         if (! $this->canManageAllUsers($actor)) {
             abort_unless(
                 $this->isEligibleLawyer($actor),
@@ -242,18 +245,27 @@ class UserController extends Controller
                     $user->member_status ?? 'active'
                 );
 
-                $user->save();
+            $user->save();
 
-                $roleIds = $this->defaultRoleIds(
-                    $user->member_status ?? 'member'
-                );
+            // Create registration invoice for member and life member.
+            if (in_array($user->member_status, ['member', 'life_member'], true)) {
 
-                $this->syncUserRoles(
-                    $user,
-                    $roleIds,
-                    $permissionService
-                );
-                return $user;
+                app(MembershipFeeService::class)
+                    ->createRegistrationInvoice($user);
+
+            }
+
+            $roleIds = $this->defaultRoleIds(
+                $user->member_status ?? 'member'
+            );
+
+            $this->syncUserRoles(
+                $user,
+                $roleIds,
+                $permissionService
+            );
+
+            return $user;
             });
 
             // Clear cached user/permission data after a successful commit.
@@ -911,6 +923,45 @@ class UserController extends Controller
                 'success',
                 "User role updated to {$role->name} successfully."
             );
+    }
+
+    public function unpaidInvoices(User $user): JsonResponse
+    {
+        abort_unless(
+            auth()->user()->hasPermission('transactions.create')
+            || auth()->user()->hasPermission('invoices.pay'),
+            403
+        );
+
+        if (! in_array($user->member_status, ['member', 'life_member'], true)) {
+            return response()->json([
+                'message' => 'This user is not eligible for membership payments.',
+                'invoices' => [],
+            ]);
+        }
+
+        $invoices = Invoice::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['pending', 'overdue'])
+            ->whereDoesntHave('transactions', function ($query) {
+                $query->whereIn('status', ['pending', 'approved']);
+            })
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get([
+                'id',
+                'invoice_number',
+                'invoice_type',
+                'cycle_key',
+                'title',
+                'amount',
+                'status',
+                'due_date',
+            ]);
+
+        return response()->json([
+            'invoices' => $invoices,
+        ]);
     }
 
 }

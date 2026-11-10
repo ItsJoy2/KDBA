@@ -75,7 +75,7 @@
         </div>
 
         <div class="card-footer">
-            {{ $invoices->links('admin.layouts.partials.pagination-links') }}
+            @include('layouts.partials.__pagination', ['items' => $invoices])
         </div>
     </div>
 </div>

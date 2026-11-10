@@ -15,6 +15,8 @@ use App\Http\Controllers\ProductShowcaseController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\TwoStepVerificationController;
 use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Http\Controllers\Member\InvoiceController as MemberInvoiceController;
 use App\Http\Controllers\Admin\MembershipFeeController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
 use App\Http\Controllers\Admin\PaymentTransactionController;
@@ -84,7 +86,11 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::patch('/{user}/member-status', 'changeStatus')->whereNumber('user')->middleware('permission:users.change_status')->name('change-status');
 
         Route::delete('/{user}', 'destroy')->whereNumber('user')->middleware('permission:users.delete')->name('destroy');
-        Route::patch('/{user}/role',[UserController::class, 'updateRole'])->name('roles.update');});
+        Route::patch('/{user}/role',[UserController::class, 'updateRole'])->name('roles.update');
+        Route::get('/{user}/unpaid-invoices',[UserController::class, 'unpaidInvoices'])->middleware('permission:transactions.create')->name('unpaid-invoices');
+        
+        });
+        
 
     Route::prefix('roles')->name('roles.')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->middleware('permission:roles.view')->name('index');
@@ -152,34 +158,61 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::post('/clear', [CacheManagementController::class,'clear',])->name('clear');
     });
     
-    Route::prefix('admin/')->name('admin.')->group(function(){
+    // Route::prefix('admin')->name('admin.')->group(function () {
+
+    //     Route::prefix('membership-fees')->name('membership-fees.')->controller(MembershipFeeController::class)->group(function () {
+    //         Route::get('/', 'index')->middleware('permission:fees.manage')->name('index');
+    //         Route::put('/', 'update')->middleware('permission:fees.manage')->name('update');
+    //     });
+
+    //     Route::prefix('payment-gateways')->name('payment-gateways.')->controller(PaymentGatewayController::class)->group(function () {
+    //         Route::get('/', 'index')->middleware('permission:gateways.manage')->name('index');
+
+    //             Route::post('/', 'store')->middleware('permission:gateways.manage')->name('store');
+    //             Route::put('/{gateway}', 'update')->middleware('permission:gateways.manage')->name('update');
+    //             Route::delete('/{gateway}', 'destroy')->middleware('permission:gateways.manage')->name('destroy');
+    //         });
+
+    //     Route::prefix('invoices')->name('invoices.')->controller(InvoiceController::class)->group(function () {
+    //         Route::get('/', 'index')->middleware('permission:invoices.view')->name('index');
+    //         Route::post('/', 'store')->middleware('permission:invoices.create')->name('store');
+    //     });
+
+    //     Route::prefix('payment-transactions')->name('payment-transactions.')->controller(PaymentTransactionController::class)->group(function () {
+    //         Route::get('/', 'index')->middleware('permission:transactions.view')->name('index');
+    //         Route::post('/{transaction}/verify', 'verify')->middleware('permission:transactions.verify')->name('verify');
+    //     });
+    // });
+
+    Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::prefix('membership-fees')->name('membership-fees.')->controller(MembershipFeeController::class)->group(function () {
-            Route::get('/')->middleware('permission:fees.manage')->name('index');
-            Route::put('/')->middleware('permission:fees.manage')->name('update');
+            Route::get('/', 'index')->middleware('permission:fees.manage')->name('index');
+            Route::put('/', 'update')->middleware('permission:fees.manage')->name('update');
         });
 
         Route::prefix('payment-gateways')->name('payment-gateways.')->controller(PaymentGatewayController::class)->group(function () {
-            Route::get('/')->middleware('permission:gateways.manage')->name('index');
-            Route::post('/')->middleware('permission:gateways.manage')->name('store');
-            Route::put('/{gateway}')->middleware('permission:gateways.manage')->name('update');
-            Route::delete('/{gateway}')->middleware('permission:gateways.manage')->name('destroy');
+            Route::get('/', 'index')->middleware('permission:gateways.manage')->name('index');
+            Route::post('/', 'store')->middleware('permission:gateways.manage')->name('store');
+            Route::put('/{gateway}', 'update')->middleware('permission:gateways.manage')->name('update');
+            Route::delete('/{gateway}', 'destroy')->middleware('permission:gateways.manage')->name('destroy');
         });
-
 
         Route::prefix('invoices')->name('invoices.')->controller(InvoiceController::class)->group(function () {
-            Route::get('/')->middleware('permission:invoices.view')->name('index');
-            Route::post('/')->middleware('permission:invoices.create')->name('store');
+            Route::get('/', 'index')->middleware('permission:invoices.view')->name('index');
+            Route::post('/', 'store')->middleware('permission:invoices.create')->name('store');
         });
 
+        Route::post('/transactions', [AdminTransactionController::class, 'store'])->middleware('permission:transactions.create')->name('transactions.store');
+
         Route::prefix('payment-transactions')->name('payment-transactions.')->controller(PaymentTransactionController::class)->group(function () {
-            Route::get('/')->middleware('permission:transactions.view')->name('index');
+            Route::get('/', 'index')->middleware('permission:transactions.view')->name('index');
             Route::post('/{transaction}/verify', 'verify')->middleware('permission:transactions.verify')->name('verify');
         });
     });
-    Route::prefix('member/invoices')->name('member.invoices.')->controller(InvoiceController::class)->group(function () {
-        Route::get('/', 'myInvoices')->name('index');
-        Route::post('/{invoice}/payment', 'submitPayment')->middleware('permission:invoices.pay')->name('payment.submit');
+    Route::prefix('member')->name('member.')->controller(MemberInvoiceController::class)->group(function () {
+        Route::get('/invoices', 'index')->name('invoices.index');
+        Route::post('/invoices/{invoice}/pay', 'pay')->name('invoices.pay');
     });
 
 

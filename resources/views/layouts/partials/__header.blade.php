@@ -177,21 +177,24 @@
                     </li>
 
                     {{-- User Footer --}}
-                    <li class="user-footer d-flex justify-content-between align-items-center gap-2">
-                        <a href="{{ url('/profile') }}"
-                        class="btn btn-outline-secondary">
-                            <i class="bi bi-person me-1"></i>
-                            Profile
-                        </a>
+                    <li class="user-footer">
+                        <div class="d-flex gap-2">
+                            <a href="{{ url('/profile') }}"
+                            class="btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center">
+                                <i class="bi bi-person me-1"></i>
+                                Profile
+                            </a>
 
-                        <form action="{{ url('/logout') }}" method="POST">
-                            @csrf
+                            <form action="{{ url('/logout') }}" method="POST" class="flex-fill d-flex m-0">
+                                @csrf
 
-                            <button type="submit" class="btn btn-outline-danger">
-                                <i class="bi bi-box-arrow-right me-1"></i>
-                                Sign out
-                            </button>
-                        </form>
+                                <button type="submit"
+                                        class="btn btn-outline-danger flex-fill d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-box-arrow-right me-1"></i>
+                                    Sign out
+                                </button>
+                            </form>
+                        </div>
                     </li>
 
                 </ul>

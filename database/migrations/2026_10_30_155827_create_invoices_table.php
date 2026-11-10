@@ -11,7 +11,11 @@ return new class extends Migration
     {
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+
+            $table->foreignId('user_id')
+                ->constrained()
+                ->restrictOnDelete();
+
             $table->string('invoice_number', 50)->unique();
             $table->string('invoice_type', 30);
             $table->string('cycle_key', 30);
@@ -22,8 +26,14 @@ return new class extends Migration
             $table->string('status', 30)->default('pending')->index();
             $table->date('due_date')->nullable();
             $table->timestamp('paid_at')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            $table->unique(['user_id', 'invoice_type', 'cycle_key'],'invoices_user_type_cycle_unique');
+
+            $table->unique(
+                ['user_id', 'invoice_type', 'cycle_key'],
+                'invoices_user_type_cycle_unique'
+            );
+
             $table->index(['user_id', 'status']);
             $table->index(['invoice_type', 'cycle_key']);
             $table->index('due_date');

@@ -13,28 +13,28 @@ use Illuminate\View\View;
 
 class PaymentTransactionController extends Controller
 {
-    public function index(): View
-    {
+public function index(): View
+{
         $transactions = Transaction::query()
+            ->whereNotNull('invoice_id')
             ->with([
                 'user:id,full_name,membership_number',
-                'invoice:id,invoice_number,amount',
+                'invoice:id,invoice_number,amount,invoice_type,cycle_key',
                 'paymentGateway:id,name,account_number',
                 'verifier:id,full_name',
             ])
             ->latest()
             ->paginate(20);
 
-        return view('admin.payment-transactions.index', compact('transactions'));
+        return view('admin.transactions.payments.index', compact('transactions'));
     }
 
-    public function verify(
-        VerifyTransactionRequest $request,
-        Transaction $transaction
-    ): RedirectResponse {
+    public function verify( VerifyTransactionRequest $request, Transaction $transaction ): RedirectResponse {
         $data = $request->validated();
 
-        DB::transaction(function () use ($transaction, $data) {
+        $approvedUserId = null;
+
+        DB::transaction(function () use ($transaction, $data, &$approvedUserId) {
             $lockedTransaction = Transaction::query()
                 ->whereKey($transaction->id)
                 ->lockForUpdate()
@@ -58,6 +58,15 @@ class PaymentTransactionController extends Controller
             }
 
             if ($data['status'] === 'approved') {
+                if (! \App\Support\Amount::equals(
+                    $lockedTransaction->amount,
+                    $invoice->amount
+                )) {
+                    throw ValidationException::withMessages([
+                        'transaction' => 'Transaction amount does not match the invoice amount. Please investigate before approving.',
+                    ]);
+                }
+
                 $lockedTransaction->update([
                     'status' => 'approved',
                     'verified_by' => auth()->id(),
@@ -70,6 +79,16 @@ class PaymentTransactionController extends Controller
                     'paid_at' => now(),
                 ]);
 
+                // Registration payment approves the membership application.
+                // Do not change member_status: it identifies the membership category.
+                if ($invoice->invoice_type === 'registration') {
+                    $invoice->user?->update([
+                        'approval_status' => 'approved',
+                    ]);
+
+                    $approvedUserId = $invoice->user_id;
+                }
+
                 return;
             }
 
@@ -80,12 +99,18 @@ class PaymentTransactionController extends Controller
                 'rejection_reason' => $data['rejection_reason'] ?? null,
             ]);
 
-            // Allow the member to submit payment again.
+            // A rejected payment allows the member to submit another payment.
             $invoice->update([
                 'status' => 'pending',
                 'paid_at' => null,
             ]);
         });
+
+        if ($approvedUserId) {
+            \Illuminate\Support\Facades\Cache::forget(
+                "rbac:user:{$approvedUserId}:permissions"
+            );
+        }
 
         return back()->with(
             'success',

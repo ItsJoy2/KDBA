@@ -237,68 +237,94 @@
                                                     {{ $member->created_at?->format('d M Y') ?? '—' }}
                                                 </td>
 
-                                                <td class="text-end pe-3">
-                                                    <div class="btn-group btn-group-sm gap-2" role="group"
+                                                <td class="text-end pe-3 align-middle">
+                                                    <div class="d-flex align-items-center justify-content-end gap-2 flex-nowrap"
+                                                        role="group"
                                                         aria-label="Member actions">
 
+                                                        {{-- View --}}
                                                         @if (auth()->user()->hasPermission('users.view'))
                                                             <a href="{{ route('users.show', $member) }}"
-                                                                class="btn btn-outline-primary pt-2"
-                                                                aria-label="View {{ $member->full_name }}"
-                                                                title="View">
-                                                                <i class="bi bi-eye" aria-hidden="true"></i>
+                                                            class="btn btn-sm btn-outline-primary member-action-btn"
+                                                            aria-label="View {{ $member->full_name }}"
+                                                            title="View">
+                                                                <i class="bi bi-eye"></i>
                                                             </a>
                                                         @endif
 
+                                                        {{-- Edit --}}
                                                         @if (auth()->user()->hasPermission('users.edit'))
                                                             <a href="{{ route('users.edit', $member) }}"
-                                                                class="btn btn-outline-secondary pt-2"
-                                                                aria-label="Edit {{ $member->full_name }}"
-                                                                title="Edit">
-                                                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                                                            class="btn btn-sm btn-outline-secondary member-action-btn"
+                                                            aria-label="Edit {{ $member->full_name }}"
+                                                            title="Edit">
+                                                                <i class="bi bi-pencil"></i>
                                                             </a>
                                                         @endif
 
-                                                        @if (auth()->user()->hasPermission('users.approve')
-                                                            && $member->approval_status === 'pending')
+                                                        {{-- Approve --}}
+                                                        @if (
+                                                            auth()->user()->hasPermission('users.approve')
+                                                            && $member->approval_status === 'pending'
+                                                        )
                                                             <form method="POST"
-                                                                action="{{ route('users.approve', $member) }}">
+                                                                action="{{ route('users.approve', $member) }}"
+                                                                class="d-inline-flex m-0">
+
                                                                 @csrf
                                                                 @method('PATCH')
-                                                                <input type="hidden" name="approval_status"
+
+                                                                <input type="hidden"
+                                                                    name="approval_status"
                                                                     value="approved">
+
                                                                 <button type="submit"
-                                                                    class="btn btn-outline-success"
-                                                                    title="Approve member"
-                                                                    aria-label="Approve {{ $member->full_name }}">
-                                                                    <i class="bi bi-check-lg"
-                                                                        aria-hidden="true"></i>
+                                                                        class="btn btn-sm btn-outline-success member-action-btn"
+                                                                        title="Approve member"
+                                                                        aria-label="Approve {{ $member->full_name }}">
+                                                                    <i class="bi bi-check-lg"></i>
                                                                 </button>
                                                             </form>
                                                         @endif
 
+                                                        {{-- Delete --}}
                                                         @if (
                                                             auth()->user()->hasPermission('users.delete')
                                                             && auth()->id() !== $member->id
                                                         )
                                                             <form method="POST"
                                                                 action="{{ route('users.destroy', $member) }}"
-                                                                class="d-inline js-delete-confirm"
+                                                                class="d-inline-flex m-0 js-delete-confirm"
                                                                 data-delete-message="Are you sure you want to delete {{ $member->full_name }}? This action cannot be undone.">
 
                                                                 @csrf
                                                                 @method('DELETE')
 
                                                                 <button type="submit"
-                                                                        class="btn btn-outline-danger"
+                                                                        class="btn btn-sm btn-outline-danger member-action-btn"
                                                                         aria-label="Delete {{ $member->full_name }}"
                                                                         title="Delete">
-                                                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                                                    <i class="bi bi-trash"></i>
                                                                 </button>
                                                             </form>
                                                         @endif
+
+                                                        {{-- Record Payment --}}
+                                                        @if (auth()->user()->hasPermission('transactions.create'))
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-success member-action-btn js-open-payment-modal"
+                                                                    data-user-id="{{ $member->id }}"
+                                                                    data-user-name="{{ $member->full_name }}"
+                                                                    data-invoices-url="{{ route('users.unpaid-invoices', $member) }}"
+                                                                    title="Record Payment"
+                                                                    aria-label="Record payment for {{ $member->full_name }}">
+                                                                <i class="bi bi-cash-coin"></i>
+                                                            </button>
+                                                        @endif
+
                                                     </div>
                                                 </td>
+
                                             </tr>
                                         @empty
                                             <tr>
@@ -326,3 +352,156 @@
         </div>
     </div>
 @endsection
+
+@include('admin.users.partials.__pay')
+
+
+@if(auth()->user()->hasPermission('transactions.create'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalElement = document.getElementById('adminPaymentModal');
+
+    if (!modalElement) {
+        return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+    const form = document.getElementById('adminPaymentForm');
+
+    const invoiceSelect = document.getElementById('paymentInvoice');
+    const amountInput = document.getElementById('paymentAmount');
+    const amountValue = document.getElementById('paymentAmountValue');
+    const submitButton = document.getElementById('submitPaymentBtn');
+
+    function clearErrors() {
+        form.querySelectorAll('.is-invalid').forEach(element => {
+            element.classList.remove('is-invalid');
+        });
+
+        form.querySelectorAll('[data-error]').forEach(element => {
+            element.textContent = '';
+        });
+    }
+
+    function showError(field, message) {
+        const input = form.querySelector(`[name="${field}"]`);
+        const error = form.querySelector(`[data-error="${field}"]`);
+
+        if (input) {
+            input.classList.add('is-invalid');
+        }
+
+        if (error) {
+            error.textContent = message;
+        }
+    }
+
+    function resetInvoiceSelection() {
+        invoiceSelect.innerHTML = '<option value="">Select an invoice</option>';
+        amountInput.value = '';
+        amountValue.value = '';
+    }
+
+    document.querySelectorAll('.js-open-payment-modal').forEach(button => {
+        button.addEventListener('click', async function () {
+            clearErrors();
+            form.reset();
+            resetInvoiceSelection();
+
+            document.getElementById('paymentMemberName').textContent =
+                this.dataset.userName;
+
+            const url = this.dataset.invoicesUrl;
+
+            invoiceSelect.innerHTML =
+                '<option value="">Loading invoices...</option>';
+
+            modal.show();
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Unable to load invoices.');
+                }
+
+                resetInvoiceSelection();
+
+                if (!result.invoices.length) {
+                    invoiceSelect.innerHTML =
+                        '<option value="">No unpaid invoice available</option>';
+
+                    return;
+                }
+
+                result.invoices.forEach(invoice => {
+                    const option = document.createElement('option');
+
+                    option.value = invoice.id;
+                    option.dataset.amount = invoice.amount;
+
+                    const type = invoice.invoice_type === 'yearly_renewal'
+                        ? 'Yearly Renewal'
+                        : 'Registration';
+
+                    option.textContent =
+                        `${invoice.invoice_number} — ${type} (${invoice.cycle_key}) — ${invoice.amount}`;
+
+                    invoiceSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                resetInvoiceSelection();
+
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = error.message;
+
+                invoiceSelect.appendChild(option);
+            }
+        });
+    });
+
+    invoiceSelect.addEventListener('change', function () {
+        const selectedOption = this.options[this.selectedIndex];
+        const amount = selectedOption?.dataset.amount || '';
+
+        amountInput.value = amount;
+        amountValue.value = amount;
+    });
+
+    form.addEventListener('submit', function (event) {
+        clearErrors();
+
+        if (!invoiceSelect.value) {
+            event.preventDefault();
+            showError('invoice_id', 'Please select an unpaid invoice.');
+            return;
+        }
+
+        if (!amountValue.value) {
+            event.preventDefault();
+            showError('amount', 'Invoice amount is required.');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
+    });
+
+    // Reopen modal when Laravel redirects back with validation errors.
+    @if($errors->any() && old('invoice_id'))
+        modal.show();
+    @endif
+});
+</script>
+@endif

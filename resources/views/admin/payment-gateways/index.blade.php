@@ -85,7 +85,7 @@
         </div>
 
         <div class="card-footer">
-            {{ $gateways->links('admin.layouts.partials.pagination-links') }}
+            @include('layouts.partials.__pagination', ['items' => $gateways])
         </div>
     </div>
 </div>

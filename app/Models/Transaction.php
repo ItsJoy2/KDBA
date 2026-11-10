@@ -15,6 +15,8 @@ class Transaction extends Model
         'sender_mobile',
         'amount',
         'status',
+        'source',
+        'recorded_by',
         'verified_by',
         'verified_at',
         'rejection_reason',

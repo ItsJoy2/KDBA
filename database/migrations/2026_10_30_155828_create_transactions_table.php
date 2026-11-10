@@ -13,11 +13,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('invoice_id')->constrained('invoices')->restrictOnDelete();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways')->nullOnDelete();
             $table->string('trx_id', 150)->unique();
             $table->string('sender_mobile', 100)->nullable();
             $table->decimal('amount', 12, 2);
             $table->string('status', 30)->default('pending')->index();
+            $table->string('source', 20)->default('member')->index();
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('verified_at')->nullable();
             $table->text('rejection_reason')->nullable();

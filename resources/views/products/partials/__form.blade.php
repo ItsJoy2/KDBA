@@ -1,90 +1,213 @@
 @csrf
 
-<div class="mb-3">
-    <label class="form-label">Product Name</label>
-    <input name="name" class="form-control" required maxlength="150"
-           value="{{ old('name', $product->name ?? '') }}">
-    @error('name') <div class="text-danger">{{ $message }}</div> @enderror
-</div>
-
-<div class="mb-3">
-    <label class="form-label">Slug (optional)</label>
-    <input name="slug" class="form-control"
-           value="{{ old('slug', $product->slug ?? '') }}">
-    @error('slug') <div class="text-danger">{{ $message }}</div> @enderror
-</div>
-
-<div class="mb-3">
-    <label class="form-label">Description</label>
-    <textarea name="description" class="form-control">{{ old('description', $product->description ?? '') }}</textarea>
-</div>
-
-<div class="row">
-    <div class="col-md-6 mb-3">
-        <label class="form-label">Buy Price</label>
-        <input type="number" step="0.01" min="0" name="buy_price"
-               class="form-control" required
-               value="{{ old('buy_price', $product->buy_price ?? '0.00') }}">
-        @error('buy_price') <div class="text-danger">{{ $message }}</div> @enderror
+{{-- Basic Information --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2 text-primary"></i>Basic Information</h6>
     </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-12">
+                <label for="name" class="form-label fw-medium">
+                    Product Name <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="name" name="name"
+                       class="form-control form-control-lg @error('name') is-invalid @enderror"
+                       required maxlength="150" placeholder="e.g. Vakalatnama, Stamp, etc."
+                       value="{{ old('name', $product->name ?? '') }}">
+                @error('name')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
 
-    <div class="col-md-6 mb-3">
-        <label class="form-label">Selling Price</label>
-        <input type="number" step="0.01" min="0" name="selling_price"
-               class="form-control" required
-               value="{{ old('selling_price', $product->selling_price ?? '0.00') }}">
-        @error('selling_price') <div class="text-danger">{{ $message }}</div> @enderror
-    </div>
-</div>
+            <div class="col-md-6">
+                <label for="slug" class="form-label fw-medium">
+                    Slug <span class="text-muted small">(auto/edit)</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text text-muted">/</span>
+                    <input type="text" id="slug" name="slug"
+                           class="form-control @error('slug') is-invalid @enderror"
+                           value="{{ old('slug', $product->slug ?? '') }}">
+                    @error('slug')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
 
-<div class="mb-3">
-    <label class="form-label">Stock Quantity</label>
-    <input type="number" min="0" name="stock_quantity" class="form-control"
-           required value="{{ old('stock_quantity', $product->stock_quantity ?? 0) }}">
-    @error('stock_quantity') <div class="text-danger">{{ $message }}</div> @enderror
-</div>
+            <div class="col-md-6">
+                <label for="status" class="form-label fw-medium">
+                    Status <span class="text-danger">*</span>
+                </label>
+                <select id="status" name="status" class="form-select @error('status') is-invalid @enderror" required>
+                    <option value="active" @selected(old('status', $product->status ?? 'active') === 'active')>Active</option>
+                    <option value="inactive" @selected(old('status', $product->status ?? '') === 'inactive')>Inactive</option>
+                </select>
+                @error('status')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
 
-<div class="form-check mb-3">
-    <input type="hidden" name="track_serials" value="0">
-    <input type="checkbox" class="form-check-input" id="track_serials"
-           name="track_serials" value="1"
-           @checked(old('track_serials', $product->track_serials ?? false))>
-    <label class="form-check-label" for="track_serials">
-        Track serial numbers
-    </label>
-</div>
-
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <label class="form-label">Serial Start</label>
-        <input type="number" min="0" name="serial_start" class="form-control"
-               value="{{ old('serial_start', $product->serial_start ?? '') }}">
-    </div>
-
-    <div class="col-md-4 mb-3">
-        <label class="form-label">Serial End</label>
-        <input type="number" min="0" name="serial_end" class="form-control"
-               value="{{ old('serial_end', $product->serial_end ?? '') }}">
-    </div>
-
-    <div class="col-md-4 mb-3">
-        <label class="form-label">Next Serial</label>
-        <input type="number" min="0" name="current_serial" class="form-control"
-               value="{{ old('current_serial', $product->current_serial ?? '') }}">
+            <div class="col-12">
+                <label for="description" class="form-label fw-medium">Description</label>
+                <textarea id="description" name="description" rows="4"
+                          class="form-control @error('description') is-invalid @enderror"
+                          placeholder="Enter product description...">{{ old('description', $product->description ?? '') }}</textarea>
+                @error('description')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="mb-3">
-    <label class="form-label">Status</label>
-    <select name="status" class="form-select" required>
-        <option value="active" @selected(old('status', $product->status ?? 'active') === 'active')>
-            Active
-        </option>
-        <option value="inactive" @selected(old('status', $product->status ?? '') === 'inactive')>
-            Inactive
-        </option>
-    </select>
+{{-- Pricing & Stock --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-stack me-2 text-success"></i>Pricing & Stock</h6>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label for="buy_price" class="form-label fw-medium">
+                    Buy Price <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">৳</span>
+                    <input type="number" id="buy_price" name="buy_price" step="0.01" min="0"
+                           class="form-control @error('buy_price') is-invalid @enderror"
+                           required value="{{ old('buy_price', $product->buy_price ?? '0.00') }}">
+                    @error('buy_price')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label for="selling_price" class="form-label fw-medium">
+                    Selling Price <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">৳</span>
+                    <input type="number" id="selling_price" name="selling_price" step="0.01" min="0"
+                           class="form-control @error('selling_price') is-invalid @enderror"
+                           required value="{{ old('selling_price', $product->selling_price ?? '0.00') }}">
+                    @error('selling_price')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <label for="stock_quantity" class="form-label fw-medium">
+                    Stock Quantity <span class="text-danger">*</span>
+                </label>
+                <input type="number" id="stock_quantity" name="stock_quantity" min="0"
+                       class="form-control @error('stock_quantity') is-invalid @enderror"
+                       required value="{{ old('stock_quantity', $product->stock_quantity ?? 0) }}">
+                @error('stock_quantity')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+    </div>
 </div>
 
-<button class="btn btn-primary" type="submit">Save Product</button>
-<a href="{{ route('products.index') }}" class="btn btn-secondary">Cancel</a>
+{{-- Serial Tracking --}}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-upc-scan me-2 text-warning"></i>Serial Tracking</h6>
+        <div class="form-check form-switch mb-0">
+            <input type="hidden" name="track_serials" value="0">
+            <input type="checkbox" class="form-check-input" id="track_serials"
+                   name="track_serials" value="1" role="switch"
+                   @checked(old('track_serials', $product->track_serials ?? false))>
+            <label class="form-check-label small" for="track_serials">Enable</label>
+        </div>
+    </div>
+
+    <div class="card-body p-4" id="serialFields">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label for="serial_start" class="form-label fw-medium">Serial Start</label>
+                <input type="number" id="serial_start" name="serial_start" min="0" class="form-control"
+                       value="{{ old('serial_start', $product->serial_start ?? '') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="serial_end" class="form-label fw-medium">Serial End</label>
+                <input type="number" id="serial_end" name="serial_end" min="0" class="form-control"
+                       value="{{ old('serial_end', $product->serial_end ?? '') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="current_serial" class="form-label fw-medium">Next Serial</label>
+                <input type="number" id="current_serial" name="current_serial" min="0" class="form-control"
+                       value="{{ old('current_serial', $product->current_serial ?? '') }}">
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Actions --}}
+<div class="d-flex justify-content-end gap-2">
+    <a href="{{ route('products.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+    <button class="btn btn-primary px-4" type="submit">
+        <i class="bi bi-check2-circle me-1"></i> Save Product
+    </button>
+</div>
+
+@push('scripts')
+<script>
+(function () {
+    const nameInput   = document.getElementById('name');
+    const slugInput   = document.getElementById('slug');
+    const serialToggle = document.getElementById('track_serials');
+    const serialWrap  = document.getElementById('serialFields');
+    const serialInputs = serialWrap.querySelectorAll('input');
+
+    // Edit mode-e slug already thakle manually set dhora hobe
+    let slugTouched = slugInput.value.trim() !== '';
+
+    // Bangla + English dui-i support kore
+    function makeSlug(text) {
+        return text
+            .normalize('NFC')
+            .trim()
+            .toLowerCase()
+            .replace(/[^\p{L}\p{M}\p{N}\s\-\u200C\u200D]/gu, '') // Bangla letter, vowel sign, digit rekhe baki bad
+            .replace(/[\s_\-]+/g, '-')                            // space/underscore -> dash
+            .replace(/^-+|-+$/g, '');                             // shuru/sheshe dash bad
+    }
+
+    // Name type korle slug auto update
+    nameInput.addEventListener('input', () => {
+        if (!slugTouched) {
+            slugInput.value = makeSlug(nameInput.value);
+        }
+    });
+
+    // User slug edit korle auto bondho, clear korle abar chalu
+    slugInput.addEventListener('input', () => {
+        slugTouched = slugInput.value.trim() !== '';
+    });
+
+    // Blur-e slug clean hobe; khali thakle name theke abar banbe
+    slugInput.addEventListener('blur', () => {
+        if (!slugTouched) {
+            slugInput.value = makeSlug(nameInput.value);
+        } else {
+            slugInput.value = makeSlug(slugInput.value);
+        }
+    });
+
+    // Serial tracking off thakle fields disabled
+    function syncSerial() {
+        const on = serialToggle.checked;
+        serialWrap.classList.toggle('opacity-50', !on);
+        serialInputs.forEach(i => i.disabled = !on);
+    }
+
+    serialToggle.addEventListener('change', syncSerial);
+    syncSerial();
+})();
+</script>
+@endpush

@@ -78,6 +78,7 @@ class DefaultPermissionsSeeder extends Seeder
 
             'transactions' => [
                 'view',
+                'create',
                 'verify',
             ],
 
