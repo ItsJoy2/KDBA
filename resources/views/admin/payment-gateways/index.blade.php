@@ -1,43 +1,79 @@
-
 @extends('layouts.app')
-
-@section('title', 'Payment Gateways')
 
 @section('content')
 <div class="container-fluid">
-    @include('components.global-feedback')
 
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title">Payment Gateways</h3>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h4 class="mb-1">Payment Gateways</h4>
+            <p class="text-muted mb-0">Manage payment methods used for membership payments.</p>
+        </div>
 
-            <button type="button" class="btn btn-primary btn-sm"
-                    data-bs-toggle="modal" data-bs-target="#gatewayModal"
-                    onclick="resetGatewayForm()">
-                <i class="bi bi-plus-circle"></i> Add Gateway
+        @if(auth()->user()->hasPermission('gateways.manage'))
+            <button type="button" class="btn btn-primary"
+                    data-bs-toggle="modal" data-bs-target="#gatewayCreateModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Gateway
             </button>
+        @endif
+    </div>
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show">
+            <strong>Please fix the following errors:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0">Gateway List</h5>
         </div>
 
         <div class="card-body table-responsive">
-            <table class="table table-bordered table-hover align-middle">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
                         <th width="60">#</th>
-                        <th>Name</th>
+                        <th>Gateway</th>
                         <th>Type</th>
                         <th>Account Number</th>
+                        <th>Sort Order</th>
                         <th>Status</th>
-                        <th width="150">Actions</th>
+                        @if(auth()->user()->hasPermission('gateways.manage'))
+                            <th class="text-end">Actions</th>
+                        @endif
                     </tr>
                 </thead>
 
                 <tbody>
                     @forelse($gateways as $gateway)
                         <tr>
-                            <td>{{ $gateways->firstItem() + $loop->index }}</td>
-                            <td>{{ $gateway->name }}</td>
-                            <td>{{ ucfirst(str_replace('_', ' ', $gateway->type)) }}</td>
-                            <td>{{ $gateway->account_number ?: '—' }}</td>
+                            <td>{{ $loop->iteration }}</td>
+
+                            <td>
+                                <strong>{{ $gateway->name }}</strong>
+                                @if($gateway->instruction)
+                                    <div class="small text-muted">
+                                        {{ \Illuminate\Support\Str::limit($gateway->instruction, 55) }}
+                                    </div>
+                                @endif
+                            </td>
+
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ strtoupper($gateway->type) }}
+                                </span>
+                            </td>
+
+                            <td>{{ $gateway->account_number }}</td>
+
+                            <td>{{ $gateway->sort_order }}</td>
+
                             <td>
                                 @if($gateway->is_active)
                                     <span class="badge bg-success">Active</span>
@@ -45,37 +81,31 @@
                                     <span class="badge bg-secondary">Inactive</span>
                                 @endif
                             </td>
-                            <td>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-info"
-                                    onclick="editGateway({{ Illuminate\Support\Js::from([
-                                        'id' => $gateway->id,
-                                        'name' => $gateway->name,
-                                        'type' => $gateway->type,
-                                        'account_number' => $gateway->account_number,
-                                        'instruction' => $gateway->instruction,
-                                        'is_active' => $gateway->is_active,
-                                        'sort_order' => $gateway->sort_order,
-                                    ]) }})">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
 
-                                <form action="{{ route('admin.payment-gateways.destroy', $gateway) }}"
-                                      method="POST" class="d-inline"
-                                      onsubmit="return confirm('Delete this payment gateway?')">
-                                    @csrf
-                                    @method('DELETE')
+                            @if(auth()->user()->hasPermission('gateways.manage'))
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#gatewayEditModal{{ $gateway->id }}"
+                                            title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
 
-                                    <button type="submit" class="btn btn-sm btn-danger">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#gatewayDeleteModal{{ $gateway->id }}"
+                                            title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                </form>
-                            </td>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted">
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-credit-card fs-3 d-block mb-2"></i>
                                 No payment gateways found.
                             </td>
                         </tr>
@@ -84,125 +114,126 @@
             </table>
         </div>
 
-        <div class="card-footer">
-            @include('layouts.partials.__pagination', ['items' => $gateways])
+            <div class="card-footer">
+                @include('layouts.partials.__pagination', ['items' => $gateways])
+            </div>
+    </div>
+</div>
+
+{{-- Create Gateway Modal --}}
+@if(auth()->user()->hasPermission('gateways.manage'))
+<div class="modal fade" id="gatewayCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ route('admin.payment-gateways.store') }}" method="POST">
+                @csrf
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Payment Gateway</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    @include('admin.payment-gateways.partials.form-fields', [
+                        'gateway' => null,
+                        'prefix' => 'create'
+                    ])
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Save Gateway
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
-{{-- Gateway Create/Edit Modal --}}
-<div class="modal fade" id="gatewayModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="POST" id="gatewayForm"
-              action="{{ route('admin.payment-gateways.store') }}">
-            @csrf
+{{-- Edit and Delete Modals --}}
+@foreach($gateways as $gateway)
 
-            <div id="gatewayMethod"></div>
-
+    {{-- Edit Modal --}}
+    <div class="modal fade" id="gatewayEditModal{{ $gateway->id }}"
+         tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="gatewayModalTitle">Add Payment Gateway</h5>
-                    <button type="button" class="btn-close"
-                            data-bs-dismiss="modal"></button>
-                </div>
+                <form action="{{ route('admin.payment-gateways.update', $gateway) }}"
+                      method="POST">
+                    @csrf
+                    @method('PUT')
 
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Gateway Name</label>
-                        <input type="text" name="name" id="gatewayName"
-                               class="form-control" maxlength="100" required>
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Payment Gateway</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Gateway Type</label>
-                        <select name="type" id="gatewayType" class="form-select" required>
-                            <option value="mobile_banking">Mobile Banking</option>
-                            <option value="bank">Bank</option>
-                            <option value="other">Other</option>
-                        </select>
+                    <div class="modal-body">
+                        @include('admin.payment-gateways.partials.form-fields', [
+                            'gateway' => $gateway,
+                            'prefix' => 'edit-'.$gateway->id
+                        ])
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Account Number</label>
-                        <input type="text" name="account_number"
-                               id="gatewayAccount" class="form-control"
-                               maxlength="100">
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i> Update Gateway
+                        </button>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Payment Instructions</label>
-                        <textarea name="instruction" id="gatewayInstruction"
-                                  class="form-control" rows="4"
-                                  maxlength="5000"></textarea>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Sort Order</label>
-                        <input type="number" name="sort_order" id="gatewaySort"
-                               class="form-control" min="0" max="65535" value="0">
-                    </div>
-
-                    <div class="form-check form-switch">
-                        <input type="hidden" name="is_active" value="0">
-                        <input type="checkbox" name="is_active" id="gatewayActive"
-                               value="1" class="form-check-input" checked>
-                        <label class="form-check-label" for="gatewayActive">
-                            Active
-                        </label>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary"
-                            data-bs-dismiss="modal">Cancel</button>
-
-                    <button type="submit" class="btn btn-primary">
-                        Save Gateway
-                    </button>
-                </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    {{-- Delete Confirmation Modal --}}
+    <div class="modal fade" id="gatewayDeleteModal{{ $gateway->id }}"
+         tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('admin.payment-gateways.destroy', $gateway) }}"
+                      method="POST">
+                    @csrf
+                    @method('DELETE')
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">Delete Payment Gateway</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="text-center py-3">
+                            <i class="bi bi-exclamation-triangle text-danger fs-1"></i>
+                            <h5 class="mt-3">Are you sure?</h5>
+                            <p class="text-muted mb-0">
+                                Delete gateway
+                                <strong>{{ $gateway->name }}</strong>?
+                            </p>
+                            <small class="text-danger">
+                                Existing transactions must retain their gateway history.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> Delete Gateway
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+@endforeach
+@endif
+
 @endsection
-
-@push('scripts')
-<script>
-    const gatewayStoreUrl = @json(route('admin.payment-gateways.store'));
-    const gatewayUpdateUrl = @json(route('admin.payment-gateways.update', ['gateway' => '__ID__']));
-
-    function resetGatewayForm() {
-        const form = document.getElementById('gatewayForm');
-
-        form.action = gatewayStoreUrl;
-        document.getElementById('gatewayMethod').innerHTML = '';
-        document.getElementById('gatewayModalTitle').textContent = 'Add Payment Gateway';
-
-        form.reset();
-        document.getElementById('gatewayActive').checked = true;
-        document.getElementById('gatewaySort').value = 0;
-    }
-
-    function editGateway(gateway) {
-        const form = document.getElementById('gatewayForm');
-
-        form.action = gatewayUpdateUrl.replace('__ID__', gateway.id);
-
-        document.getElementById('gatewayMethod').innerHTML =
-            '<input type="hidden" name="_method" value="PUT">';
-
-        document.getElementById('gatewayModalTitle').textContent = 'Edit Payment Gateway';
-
-        document.getElementById('gatewayName').value = gateway.name ?? '';
-        document.getElementById('gatewayType').value = gateway.type;
-        document.getElementById('gatewayAccount').value = gateway.account_number ?? '';
-        document.getElementById('gatewayInstruction').value = gateway.instruction ?? '';
-        document.getElementById('gatewaySort').value = gateway.sort_order ?? 0;
-        document.getElementById('gatewayActive').checked = Boolean(gateway.is_active);
-
-        bootstrap.Modal.getOrCreateInstance(
-            document.getElementById('gatewayModal')
-        ).show();
-    }
-</script>
-@endpush

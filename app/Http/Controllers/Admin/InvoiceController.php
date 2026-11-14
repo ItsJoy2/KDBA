@@ -23,22 +23,16 @@ class InvoiceController extends Controller
     public function index(): View
     {
         $invoices = Invoice::query()
-            ->where('user_id', auth()->id())
             ->with([
-                'transactions' => fn ($query) => $query->latest(),
+                'user:id,full_name,membership_number',
+                'transactions' => fn ($query) => $query
+                    ->with('paymentGateway')
+                    ->latest(),
             ])
             ->latest()
             ->paginate(15);
 
-        $paymentGateways = PaymentGateway::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->get(['id', 'name', 'account_number', 'instruction']);
-
-        return view('member.invoices.index', compact(
-            'invoices',
-            'paymentGateways'
-        ));
+        return view('admin.invoices.index', compact('invoices'));
     }
 
     /**

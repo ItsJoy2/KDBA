@@ -59,14 +59,15 @@ class MembershipFeeService
     /**
      * Generate the initial registration invoice for an eligible user.
      */
-    public function createRegistrationInvoice(User $user): ?Invoice
-    {
+    
+    public function createRegistrationInvoice(User $user,?int $createdBy = null ): ?Invoice {
         if (! in_array($user->member_status, ['member', 'life_member'], true)) {
             return null;
         }
 
         $amount = $this->registrationFee();
 
+        // Do not generate an invoice if the registration fee is not configured.
         if ($amount <= 0) {
             return null;
         }
@@ -85,9 +86,11 @@ class MembershipFeeService
                 'amount' => $amount,
                 'status' => 'pending',
                 'due_date' => now()->addDays(30)->toDateString(),
+                'created_by' => $createdBy ?? $user->created_by,
             ]
         );
     }
+
 
     /**
      * Generate a yearly renewal invoice.

@@ -15,7 +15,7 @@ class PaymentGatewayController extends Controller
         $gateways = PaymentGateway::query()
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(15);
 
         return view('admin.payment-gateways.index', compact('gateways'));
     }

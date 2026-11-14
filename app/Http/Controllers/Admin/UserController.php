@@ -134,10 +134,7 @@ class UserController extends Controller
 
             return $member;
         });
-        $paymentGateways = PaymentGateway::query()
-        ->where('is_active', true)
-        ->orderBy('sort_order')
-        ->get(['id', 'name', 'account_number']);
+        $paymentGateways = PaymentGateway::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
 
         return view('admin.users.index', compact('users', 'filters', 'paymentGateways'));
     }

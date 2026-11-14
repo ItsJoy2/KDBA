@@ -354,6 +354,7 @@
 @endsection
 
 @include('admin.users.partials.__pay')
+@include('admin.users.partials.payment-modal')
 
 
 @if(auth()->user()->hasPermission('transactions.create'))

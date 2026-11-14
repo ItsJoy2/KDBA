@@ -87,7 +87,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
 
         Route::delete('/{user}', 'destroy')->whereNumber('user')->middleware('permission:users.delete')->name('destroy');
         Route::patch('/{user}/role',[UserController::class, 'updateRole'])->name('roles.update');
-        Route::get('/{user}/unpaid-invoices',[UserController::class, 'unpaidInvoices'])->middleware('permission:transactions.create')->name('unpaid-invoices');
+        Route::get('/{user}/unpaid-invoices', [UserController::class, 'unpaidInvoices'])->middleware('permission:transactions.create')->name('unpaid-invoices');
         
         });
         

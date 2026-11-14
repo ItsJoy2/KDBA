@@ -22,7 +22,7 @@ class InvoiceController extends Controller
         $invoices = Invoice::query()
             ->where('user_id', auth()->id())
             ->with([
-                'transactions' => fn ($query) => $query->latest(),
+                'transactions.paymentGateway',
             ])
             ->latest()
             ->paginate(15);

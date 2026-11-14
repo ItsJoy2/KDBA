@@ -141,6 +141,22 @@
                     </li>
                 @endif
 
+
+                {{-- Member's Own Invoices --}}
+                @if(
+                    in_array(auth()->user()->member_status, ['member', 'life_member'], true)
+                )
+                    <li class="nav-item">
+                        <a href="{{ route('member.invoices.index') }}"
+                        class="nav-link {{ request()->routeIs('member.invoices.*') ? 'active' : '' }}">
+
+                            <i class="nav-icon bi bi-receipt"></i>
+                            <p>My Invoices</p>
+                        </a>
+                    </li>
+                @endif
+
+
                 {{-- Membership & Payment Management --}}
                 @if(
                     auth()->user()->hasPermission('fees.manage') ||
