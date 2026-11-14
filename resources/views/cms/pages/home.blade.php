@@ -64,13 +64,13 @@
     <h2 class="sec-title">Messages from our leadership</h2><div class="rule"></div>
     <div class="row g-4">
       <div class="col-lg-6"><article class="msg">
-        <div class="head"><img class="photo" data-avatar="Md. Abdul Karim" alt="Md. Abdul Karim, President">
-          <div><h3 class="h3">Md. Abdul Karim</h3><div class="role">President</div></div></div>
+        <div class="head"><img src="{{ asset('assets/images/member/adv-abdul-malek-mintu.jpg') }}" class="photo" alt="Adv. Md. Abdul Malek Mintu, President">
+          <div><h3 class="h3">Adv. Md. Abdul Malek Mintu</h3><div class="role">President</div></div></div>
         <blockquote>“Our bar stands on one promise: no one who seeks justice should be turned away. We will keep strengthening our members, our ethics and our service to the people of this district.”</blockquote>
       </article></div>
       <div class="col-lg-6"><article class="msg">
-        <div class="head"><img class="photo" data-avatar="Shahidul Islam" alt="Shahidul Islam, General Secretary">
-          <div><h3 class="h3">Shahidul Islam</h3><div class="role">General Secretary</div></div></div>
+        <div class="head"><img src="{{ asset('assets/images/member/adv-shaikh-md-jamal-hossain-siddiky.jpeg') }}" class="photo" alt="Adv. Shaikh Md. Jamal Hossain Siddiky, General Secretary">
+          <div><h3 class="h3">Adv. Shaikh Md. Jamal Hossain Siddiky</h3><div class="role">General Secretary</div></div></div>
         <blockquote>“Transparency and teamwork drive everything we do. From training to digital services, our focus is to make the Association open, accountable and useful to every advocate.”</blockquote>
       </article></div>
     </div>
