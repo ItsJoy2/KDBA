@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             DefaultSuperAdminSeeder::class,
             MembershipFeeSettingsSeeder::class,
             PaymentGatewaySeeder::class,
+            TransactionCategorySeeder::class,
         ]);
     }
 }

@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminStoreTransactionRequest;
+use App\Http\Requests\StoreManualTransactionRequest;
 use App\Models\Invoice;
 use App\Models\PaymentGateway;
 use App\Models\Transaction;
+use App\Models\TransactionCategory;
+use App\Services\Finance\FinancialTransactionService;
 use App\Support\Amount;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Throwable;
 
 class TransactionController extends Controller
@@ -159,4 +164,69 @@ class TransactionController extends Controller
             'approval_status' => 'approved',
         ]);
     }
+
+
+    public function storeManual(StoreManualTransactionRequest $request): RedirectResponse {
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($validated) {
+            $category = TransactionCategory::query()
+                ->whereKey($validated['category_id'])
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $userId = auth()->id();
+
+            Transaction::create([
+                'user_id' => $userId,
+                'invoice_id' => null,
+                'payment_gateway_id' => $validated['payment_gateway_id'] ?? null,
+
+                // Internal unique reference for manual accounting entries.
+                'trx_id' => 'MAN-' . Str::upper((string) Str::uuid()),
+
+                'category_id' => $category->id,
+                'sender_mobile' => null,
+                'amount' => $validated['amount'],
+                'description' => $validated['description'],
+
+                // Manual financial entries are recorded as approved.
+                'status' => 'approved',
+                'source' => 'admin',
+                'recorded_by' => $userId,
+                'verified_by' => $userId,
+                'verified_at' => now(),
+                'submitted_at' => now(),
+            ]);
+        });
+
+        app(FinancialTransactionService::class)
+            ->clearFinancialCache();
+
+        return back()->with(
+            'success',
+            'Financial transaction recorded successfully.'
+        );
+    }
+    public function createManual(): View
+    {
+        $categories = TransactionCategory::query()
+            ->active()
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
+
+        $paymentGateways = PaymentGateway::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.transactions.manual-create', compact(
+            'categories',
+            'paymentGateways'
+        ));
+    }
+
 }

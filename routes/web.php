@@ -1,26 +1,34 @@
 <?php
 
+use App\Http\Controllers\Admin\CacheManagementController;
+use App\Http\Controllers\Admin\FinancialLedgerController;
+use App\Http\Controllers\Admin\FinancialReportController;
+use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\LawyerAssistantController;
+use App\Http\Controllers\Admin\MembershipFeeController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\PaymentGatewayController;
+use App\Http\Controllers\Admin\PaymentTransactionController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\TransactionCategoryController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\TwoStepVerificationController;
 use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\Member\InvoiceController as MemberInvoiceController;
+use App\Http\Controllers\Member\TransactionController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\Admin\CacheManagementController;
 use App\Http\Controllers\ProductShowcaseController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Auth\TwoStepVerificationController;
-use App\Http\Controllers\Admin\InvoiceController;
-use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
-use App\Http\Controllers\Member\InvoiceController as MemberInvoiceController;
-use App\Http\Controllers\Admin\MembershipFeeController;
-use App\Http\Controllers\Admin\PaymentGatewayController;
-use App\Http\Controllers\Admin\PaymentTransactionController;
 use Illuminate\Support\Facades\Route;
+
+
+
+
 
 
 
@@ -203,17 +211,37 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
             Route::post('/', 'store')->middleware('permission:invoices.create')->name('store');
         });
 
-        Route::post('/transactions', [AdminTransactionController::class, 'store'])->middleware('permission:transactions.create')->name('transactions.store');
+        Route::prefix('transactions')->name('transactions.')->controller(AdminTransactionController::class)->group(function () {
+            Route::post('/', [AdminTransactionController::class, 'store'])->middleware('permission:transactions.create')->name('store');
+            Route::post('/manual', [AdminTransactionController::class, 'storeManual'])->middleware('permission:transactions.create')->name('manual.store');
+
+            Route::get('/manual/create', [ AdminTransactionController::class, 'createManual',])->middleware('permission:transactions.create')->name('manual.create');
+
+        });
+        Route::prefix('transaction-categories')->name('transaction-categories.')->controller(TransactionCategoryController::class)->group(function () {
+            Route::get('/', 'index')->middleware('permission:finance_categories.view')->name('index');
+            Route::post('/', 'store')->middleware('permission:finance_categories.create')->name('store');
+            Route::put('/{category}', 'update')->middleware('permission:finance_categories.edit')->name('update');
+            Route::delete('/{category}', 'destroy')->middleware('permission:finance_categories.delete')->name('destroy');
+        });
 
         Route::prefix('payment-transactions')->name('payment-transactions.')->controller(PaymentTransactionController::class)->group(function () {
             Route::get('/', 'index')->middleware('permission:transactions.view')->name('index');
             Route::post('/{transaction}/verify', 'verify')->middleware('permission:transactions.verify')->name('verify');
         });
+
+        Route::get('/finance/transactions', [FinancialLedgerController::class,'index',])->middleware('permission:transactions.view_all')->name('finance.transactions.index');
+        Route::get('/finance/reports', [FinancialReportController::class,'index',])->middleware('permission:finance.reports')->name('finance.reports.index');
+
     });
+
     Route::prefix('member')->name('member.')->controller(MemberInvoiceController::class)->group(function () {
         Route::get('/invoices', 'index')->name('invoices.index');
         Route::post('/invoices/{invoice}/pay', 'pay')->name('invoices.pay');
     });
 
+    Route::middleware(['auth', 'permission:transactions.view_own'])->prefix('member')->name('member.')->group(function () {
+        Route::get('/transactions', [TransactionController::class,'index',])->name('transactions.index');
+    });
 
 });

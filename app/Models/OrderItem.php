@@ -12,6 +12,7 @@ class OrderItem extends Model
         'product_id',
         'quantity',
         'price',
+        'buy_price',
     ];
 
     protected function casts(): array
@@ -19,6 +20,7 @@ class OrderItem extends Model
         return [
             'quantity' => 'integer',
             'price' => 'decimal:2',
+            'buy_price' => 'decimal:2',
         ];
     }
 

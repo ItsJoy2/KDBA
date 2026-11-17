@@ -24,6 +24,7 @@ return new class extends Migration
 
             // Price per unit at the time of purchase.
             $table->decimal('price', 12, 2);
+            $table->decimal('buy_price', 12, 2)->nullable();
 
             $table->timestamps();
 

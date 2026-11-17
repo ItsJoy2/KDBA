@@ -11,23 +11,18 @@ class MembershipFeeSettingsSeeder extends Seeder
     {
         $settings = [
             [
-                'key' => 'membership.registration_fee',
+                'key' => 'membership.monthly_rent',
                 'value' => '0.00',
                 'type' => 'text',
                 'group' => 'membership',
             ],
             [
-                'key' => 'membership.yearly_fee.member',
+                'key' => 'membership.yearly_fee',
                 'value' => '0.00',
                 'type' => 'text',
                 'group' => 'membership',
             ],
-            [
-                'key' => 'membership.yearly_fee.life_member',
-                'value' => '0.00',
-                'type' => 'text',
-                'group' => 'membership',
-            ],
+
         ];
 
         foreach ($settings as $setting) {

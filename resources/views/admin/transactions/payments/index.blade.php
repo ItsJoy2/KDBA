@@ -13,7 +13,7 @@
         </div>
 
         <div class="card-body table-responsive">
-            <table class="table table-bordered table-hover align-middle">
+            <table class="table table-hover align-middle m-0">
                 <thead>
                     <tr>
                         <th>#</th>

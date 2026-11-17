@@ -246,7 +246,8 @@ class OrderService
                 $order->items()->create([
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'price' => $line['priceCents'] / 100,
+                    'price' => $product->selling_price,
+                    'buy_price' => $product->buy_price,
                 ]);
 
                 if ($product->track_serials) {

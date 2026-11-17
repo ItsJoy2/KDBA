@@ -6,13 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\VerifyTransactionRequest;
 use App\Models\Invoice;
 use App\Models\Transaction;
+use App\Support\Amount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use App\Services\Finance\FinancialTransactionService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentTransactionController extends Controller
 {
+
+    public function __construct(
+        private readonly FinancialTransactionService $financialService
+    ) {}
+
 public function index(): View
 {
         $transactions = Transaction::query()
@@ -29,12 +37,17 @@ public function index(): View
         return view('admin.transactions.payments.index', compact('transactions'));
     }
 
-    public function verify( VerifyTransactionRequest $request, Transaction $transaction ): RedirectResponse {
+    
+    public function verify( VerifyTransactionRequest $request, Transaction $transaction): RedirectResponse {
         $data = $request->validated();
 
         $approvedUserId = null;
 
-        DB::transaction(function () use ($transaction, $data, &$approvedUserId) {
+        DB::transaction(function () use (
+            $transaction,
+            $data,
+            &$approvedUserId
+        ) {
             $lockedTransaction = Transaction::query()
                 ->whereKey($transaction->id)
                 ->lockForUpdate()
@@ -58,7 +71,9 @@ public function index(): View
             }
 
             if ($data['status'] === 'approved') {
-                if (! \App\Support\Amount::equals(
+
+                // Verify transaction amount.
+                if (! Amount::equals(
                     $lockedTransaction->amount,
                     $invoice->amount
                 )) {
@@ -67,6 +82,7 @@ public function index(): View
                     ]);
                 }
 
+                // Approve transaction.
                 $lockedTransaction->update([
                     'status' => 'approved',
                     'verified_by' => auth()->id(),
@@ -74,6 +90,13 @@ public function index(): View
                     'rejection_reason' => null,
                 ]);
 
+                // Assign income category to the approved payment.
+                $this->financialService->categorizeInvoicePayment(
+                    $lockedTransaction,
+                    $invoice
+                );
+
+                // Mark invoice as paid.
                 $invoice->update([
                     'status' => 'paid',
                     'paid_at' => now(),
@@ -92,6 +115,7 @@ public function index(): View
                 return;
             }
 
+            // Reject transaction.
             $lockedTransaction->update([
                 'status' => 'rejected',
                 'verified_by' => auth()->id(),
@@ -106,8 +130,9 @@ public function index(): View
             ]);
         });
 
+        // Clear user permission cache after registration approval.
         if ($approvedUserId) {
-            \Illuminate\Support\Facades\Cache::forget(
+            Cache::forget(
                 "rbac:user:{$approvedUserId}:permissions"
             );
         }
@@ -119,4 +144,5 @@ public function index(): View
                 : 'Payment rejected successfully.'
         );
     }
+
 }

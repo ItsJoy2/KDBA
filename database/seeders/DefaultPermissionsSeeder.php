@@ -4,8 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DefaultPermissionsSeeder extends Seeder
@@ -16,33 +16,58 @@ class DefaultPermissionsSeeder extends Seeder
             'dashboard' => ['view'],
 
             'members' => [
-                'view', 'create', 'edit', 'delete', 'export',
+                'view',
+                'create',
+                'edit',
+                'delete',
+                'export',
             ],
 
             'roles' => [
-                'view', 'create', 'edit', 'delete',
+                'view',
+                'create',
+                'edit',
+                'delete',
             ],
 
             'permissions' => [
-                'view', 'assign',
+                'view',
+                'assign',
             ],
 
             'users' => [
-                'view', 'create', 'edit', 'delete',
-                'approve', 'change_status',
+                'view',
+                'create',
+                'edit',
+                'delete',
+                'approve',
+                'change_status',
             ],
 
-            'profile' => ['view', 'edit'],
+            'profile' => [
+                'view',
+                'edit',
+            ],
 
-            'settings' => ['view', 'edit'],
+            'settings' => [
+                'view',
+                'edit',
+            ],
 
             'assistants' => [
-                'view', 'view_assigned_lawyer',
+                'view',
+                'view_assigned_lawyer',
             ],
 
-            'reports' => ['view', 'export'],
+            'reports' => [
+                'view',
+                'export',
+            ],
 
-            'audit_logs' => ['view', 'export'],
+            'audit_logs' => [
+                'view',
+                'export',
+            ],
 
             'products' => [
                 'view',
@@ -78,13 +103,18 @@ class DefaultPermissionsSeeder extends Seeder
 
             'transactions' => [
                 'view',
-                'create',
+                'view_all' => 'View all financial transactions',
+                'view_own' => 'View own financial transactions',
+                'create' => 'Create manual financial transactions',
                 'verify',
             ],
 
-            // 'settings' => [
-            //     'manage',
-            // ],
+            'finance_categories' => [
+                'view' => 'View financial transaction categories',
+                'create' => 'Create financial transaction categories',
+                'edit' => 'Edit financial transaction categories',
+                'delete' => 'Delete financial transaction categories',
+            ],
         ];
 
         $customPermissions = [
@@ -162,16 +192,51 @@ class DefaultPermissionsSeeder extends Seeder
                 'name' => 'Update Order Status (Legacy)',
                 'description' => 'Legacy permission for updating order status.',
             ],
-            
-            'cache' => [
-                'clear',
+
+            'transactions.view' => [
+                'name' => 'View Financial Transactions',
+                'description' => 'View financial transactions for payment verification and authorized operations.',
+            ],
+
+            'transactions.view_all' => [
+                'name' => 'View All Financial Transactions',
+                'description' => 'View all financial transactions across members.',
+            ],
+
+            'transactions.view_own' => [
+                'name' => 'View Own Financial Transactions',
+                'description' => 'View only financial transactions belonging to the authenticated user.',
+            ],
+
+            'transactions.create' => [
+                'name' => 'Create Financial Transactions',
+                'description' => 'Create manual financial transactions.',
+            ],
+
+            'transactions.verify' => [
+                'name' => 'Verify Transactions',
+                'description' => 'Verify or reject financial transactions.',
             ],
         ];
 
-        DB::transaction(function () use ($modules, $customPermissions): void {
+        DB::transaction(function () use (
+            $modules,
+            $customPermissions
+        ): void {
+
+
             foreach ($modules as $module => $actions) {
-                foreach ($actions as $action) {
+
+                foreach ($actions as $action => $description) {
+
+                    // Support indexed permission definitions.
+                    if (is_int($action)) {
+                        $action = $description;
+                        $description = null;
+                    }
+
                     $slug = "{$module}.{$action}";
+
                     $custom = $customPermissions[$slug] ?? [];
 
                     DB::table('permissions')->updateOrInsert(
@@ -182,21 +247,27 @@ class DefaultPermissionsSeeder extends Seeder
                         [
                             'name' => $custom['name']
                                 ?? Str::headline("{$module} {$action}"),
+
                             'slug' => $slug,
+
                             'description' => $custom['description']
+                                ?? $description
                                 ?? sprintf(
                                     'Allows the user to %s %s.',
                                     $action,
                                     str_replace('_', ' ', $module)
                                 ),
-                            'created_at' => now(),
+
                             'updated_at' => now(),
+                        ] + [
+                            'created_at' => now(),
                         ]
                     );
                 }
             }
 
-            Role::updateOrCreate(
+
+            $superAdmin = Role::updateOrCreate(
                 ['slug' => 'super-admin'],
                 [
                     'name' => 'Super Admin',
@@ -206,12 +277,12 @@ class DefaultPermissionsSeeder extends Seeder
                 ]
             );
 
-            // Assign all seeded permissions to Super Admin.
-            $superAdmin = Role::where('slug', 'super-admin')->firstOrFail();
 
-            $permissionIds = DB::table('permissions')->pluck('id');
+            $permissionIds = DB::table('permissions')
+                ->pluck('id');
 
             foreach ($permissionIds as $permissionId) {
+
                 DB::table('role_has_permissions')->updateOrInsert(
                     [
                         'role_id' => $superAdmin->id,
@@ -221,24 +292,21 @@ class DefaultPermissionsSeeder extends Seeder
                 );
             }
 
-            // product purchasing and order viewing permissions.
+
             $member = Role::where('slug', 'member')->first();
 
             if ($member) {
+
                 $memberPermissionIds = DB::table('permissions')
                     ->whereIn('slug', [
                         'products.buy',
                         'orders.view',
                         'orders.view_own',
                     ])
-                    ->pluck('id')
-                    ->all();
-
-                DB::table('role_has_permissions')
-                    ->where('role_id', $member->id)
-                    ->delete();
+                    ->pluck('id');
 
                 foreach ($memberPermissionIds as $permissionId) {
+
                     DB::table('role_has_permissions')->updateOrInsert(
                         [
                             'role_id' => $member->id,
@@ -250,8 +318,6 @@ class DefaultPermissionsSeeder extends Seeder
             }
         });
 
-        // Clear application permission caches if these cache keys
-        // match the ones used by your RBAC implementation.
         Cache::forget('permissions');
         Cache::forget('roles');
     }

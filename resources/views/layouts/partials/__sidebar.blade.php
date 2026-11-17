@@ -143,9 +143,7 @@
 
 
                 {{-- Member's Own Invoices --}}
-                @if(
-                    in_array(auth()->user()->member_status, ['member', 'life_member'], true)
-                )
+                @if(in_array(auth()->user()->member_status, ['member', 'life_member'], true))
                     <li class="nav-item">
                         <a href="{{ route('member.invoices.index') }}"
                         class="nav-link {{ request()->routeIs('member.invoices.*') ? 'active' : '' }}">
@@ -156,25 +154,159 @@
                     </li>
                 @endif
 
+                {{-- Member's Own Transactions --}}
+                @if(auth()->user()->hasPermission('transactions.view_own') && in_array(auth()->user()->member_status, ['member', 'life_member'], true))
+                    <li class="nav-item">
+                        <a href="{{ route('member.transactions.index') }}"
+                        class="nav-link {{ request()->routeIs('member.transactions.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-wallet2"></i>
+                            <p>My Transactions</p>
+                        </a>
+                    </li>
+                @endif
 
-                {{-- Membership & Payment Management --}}
+                
+                {{-- ==================== FINANCE ==================== --}}
+
                 @if(
-                    auth()->user()->hasPermission('fees.manage') ||
-                    auth()->user()->hasPermission('gateways.manage') ||
+                    auth()->user()->hasPermission('transactions.view_all') ||
+                    auth()->user()->hasPermission('transactions.create') ||
+                    auth()->user()->hasPermission('finance.reports') ||
+                    auth()->user()->hasPermission('finance_categories.view') ||
                     auth()->user()->hasPermission('invoices.view') ||
                     auth()->user()->hasPermission('transactions.view')
                 )
-                    <li class="nav-header">MEMBERSHIP & FINANCE</li>
+                    <li class="nav-header">FINANCE</li>
 
-                    <li class="nav-item {{ request()->routeIs('admin.membership-fees.*', 'admin.payment-gateways.*', 'admin.invoices.*', 'admin.payment-transactions.*') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{
+                        request()->routeIs(
+                            'admin.finance.*',
+                            'admin.transaction-categories.*',
+                            'admin.transactions.manual.*',
+                            'admin.invoices.*',
+                            'admin.payment-transactions.*'
+                        ) ? 'menu-open' : ''
+                    }}">
+
+                        <a href="#" class="nav-link {{
+                            request()->routeIs(
+                                'admin.finance.*',
+                                'admin.transaction-categories.*',
+                                'admin.transactions.manual.*',
+                                'admin.invoices.*',
+                                'admin.payment-transactions.*'
+                            ) ? 'active' : ''
+                        }}">
+                            <i class="nav-icon bi bi-cash-stack"></i>
+                            <p>
+                                Finance
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                            </p>
+                        </a>
+
+                        <ul class="nav nav-treeview">
+
+                            {{-- All Transactions --}}
+                            @if(auth()->user()->hasPermission('transactions.view_all'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.finance.transactions.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.finance.transactions.*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>All Transactions</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- Add Income / Expense --}}
+                            @if(auth()->user()->hasPermission('transactions.create'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.transactions.manual.create') }}"
+                                    class="nav-link {{ request()->routeIs('admin.transactions.manual.create') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-plus-circle"></i>
+                                        <p>Add Income / Expense</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- Transaction Categories --}}
+                            @if(auth()->user()->hasPermission('finance_categories.view'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.transaction-categories.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.transaction-categories.*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-tags"></i>
+                                        <p>Transaction Categories</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- Finance Reports --}}
+                            @if(auth()->user()->hasPermission('finance.reports'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.finance.reports.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.finance.reports.*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Finance Reports</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- All Invoices --}}
+                            @if(auth()->user()->hasPermission('invoices.view'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.invoices.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-receipt"></i>
+                                        <p>All Invoices</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            {{-- Payment Verification --}}
+                            @if(auth()->user()->hasPermission('transactions.view'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.payment-transactions.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.payment-transactions.*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-shield-check"></i>
+                                        <p>Payment Verification</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                        </ul>
+                    </li>
+                @endif
+
+
+                {{-- ==================== SETTINGS ==================== --}}
+
+                @if(
+                    auth()->user()->hasPermission('fees.manage') ||
+                    auth()->user()->hasPermission('gateways.manage') ||
+                    auth()->user()->hasPermission('roles.view') ||
+                    auth()->user()->hasPermission('cache.clear') ||
+                    auth()->user()->roles()->where('slug', 'super-admin')->exists()
+                )
+                    <li class="nav-header">SETTINGS</li>
+
+                    <li class="nav-item {{ request()->routeIs(
+                        'admin.membership-fees.*',
+                        'admin.payment-gateways.*',
+                        'roles.*',
+                        'admin.system.cache.*'
+                    ) ? 'menu-open' : '' }}">
 
                         <a href="#"
-                           class="nav-link {{ request()->routeIs('admin.membership-fees.*', 'admin.payment-gateways.*', 'admin.invoices.*', 'admin.payment-transactions.*') ? 'active' : '' }}">
+                        class="nav-link {{ request()->routeIs(
+                            'admin.membership-fees.*',
+                            'admin.payment-gateways.*',
+                            'roles.*',
+                            'admin.system.cache.*'
+                        ) ? 'active' : '' }}">
 
-                            <i class="nav-icon bi bi-cash-stack"></i>
+                            <i class="nav-icon bi bi-gear-fill"></i>
 
                             <p>
-                                Membership & Finance
+                                Settings
                                 <i class="nav-arrow bi bi-chevron-right"></i>
                             </p>
                         </a>
@@ -185,9 +317,9 @@
                             @if(auth()->user()->hasPermission('fees.manage'))
                                 <li class="nav-item">
                                     <a href="{{ route('admin.membership-fees.index') }}"
-                                       class="nav-link {{ request()->routeIs('admin.membership-fees.*') ? 'active' : '' }}">
+                                    class="nav-link {{ request()->routeIs('admin.membership-fees.*') ? 'active' : '' }}">
                                         <i class="nav-icon bi bi-circle"></i>
-                                        <p>Membership Fee Settings</p>
+                                        <p>Membership Fees</p>
                                     </a>
                                 </li>
                             @endif
@@ -196,41 +328,45 @@
                             @if(auth()->user()->hasPermission('gateways.manage'))
                                 <li class="nav-item">
                                     <a href="{{ route('admin.payment-gateways.index') }}"
-                                       class="nav-link {{ request()->routeIs('admin.payment-gateways.*') ? 'active' : '' }}">
+                                    class="nav-link {{ request()->routeIs('admin.payment-gateways.*') ? 'active' : '' }}">
                                         <i class="nav-icon bi bi-circle"></i>
                                         <p>Payment Gateways</p>
                                     </a>
                                 </li>
                             @endif
 
-                            {{-- All Invoices --}}
-                            @if(auth()->user()->hasPermission('invoices.view'))
+                            {{-- Roles & Permissions --}}
+                            @if(auth()->user()->hasPermission('roles.view'))
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.invoices.index') }}"
-                                       class="nav-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}">
+                                    <a href="{{ route('roles.index') }}"
+                                    class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}">
                                         <i class="nav-icon bi bi-circle"></i>
-                                        <p>All Invoices</p>
+                                        <p>Roles & Permissions</p>
                                     </a>
                                 </li>
                             @endif
 
-                            {{-- Payment Verification --}}
-                            @if(auth()->user()->hasPermission('transactions.view'))
+                            {{-- Cache Management --}}
+                            {{-- @if(
+                                auth()->user()->hasPermission('cache.clear') ||
+                                auth()->user()->roles()->where('slug', 'super-admin')->exists()
+                            )
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.payment-transactions.index') }}"
-                                       class="nav-link {{ request()->routeIs('admin.payment-transactions.*') ? 'active' : '' }}">
+                                    <a href="{{ route('system.cache.index') }}"
+                                    class="nav-link {{ request()->routeIs('admin.system.cache.*') ? 'active' : '' }}">
                                         <i class="nav-icon bi bi-circle"></i>
-                                        <p>Payment Verification</p>
+                                        <p>Cache Management</p>
                                     </a>
                                 </li>
-                            @endif
+                            @endif --}}
 
                         </ul>
                     </li>
                 @endif
 
+
                 {{-- Roles & Permissions --}}
-                @if(auth()->user()->hasPermission('roles.view'))
+                {{-- @if(auth()->user()->hasPermission('roles.view'))
                     <li class="nav-item">
                         <a href="{{ route('roles.index') }}"
                            class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}">
@@ -238,7 +374,7 @@
                             <p>Roles & Permissions</p>
                         </a>
                     </li>
-                @endif
+                @endif --}}
 
                 {{-- Cache Management --}}
                 @if(
