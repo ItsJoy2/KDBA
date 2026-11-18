@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -9,30 +10,52 @@ use Illuminate\Validation\Validator;
 
 class StoreUserRequest extends FormRequest
 {
+    /**
+     * Prepare input before validation.
+     */
     protected function prepareForValidation(): void
     {
         // Admin-created users default to approved.
         if (!$this->user()?->hasPermission('users.approve')) {
-            $this->merge(['approval_status' => 'approved']);
+            $this->merge([
+                'approval_status' => 'approved',
+            ]);
         } elseif (!$this->has('approval_status')) {
-            $this->merge(['approval_status' => 'approved']);
+            $this->merge([
+                'approval_status' => 'approved',
+            ]);
         }
 
-        // Default member status for a new record.
-        if (!$this->has('member_status')) {
-            $this->merge(['member_status' => 'member']);
-        }
+        /*
+         * Do not assign a default member_status.
+         *
+         * NULL member_status represents a General Portal User.
+         */
     }
 
+    /**
+     * Determine if the user is authorized to make this request.
+     */
     public function authorize(): bool
     {
         return $this->user()?->hasPermission('users.create') ?? false;
     }
 
+    /**
+     * Get the validation rules.
+     */
     public function rules(): array
     {
+        $memberStatus = $this->input('member_status');
+
         return [
-            'full_name' => ['required', 'string', 'max:150'],
+
+            // Basic Information
+            'full_name' => [
+                'required',
+                'string',
+                'max:150',
+            ],
 
             'email' => [
                 'nullable',
@@ -52,12 +75,30 @@ class StoreUserRequest extends FormRequest
             'password' => [
                 'required',
                 'confirmed',
-                Password::min(8)->mixedCase()->numbers()->symbols(),
+                Password::min(8)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
             ],
 
-            'father_name' => ['nullable', 'string', 'max:150'],
-            'mother_name' => ['nullable', 'string', 'max:150'],
-            'dob' => ['nullable', 'date', 'before:today'],
+            // Personal Information
+            'father_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'mother_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'dob' => [
+                'nullable',
+                'date',
+                'before:today',
+            ],
 
             'gender' => [
                 'nullable',
@@ -72,9 +113,19 @@ class StoreUserRequest extends FormRequest
                 ]),
             ],
 
-            'present_address' => ['nullable', 'string', 'max:2000'],
-            'permanent_address' => ['nullable', 'string', 'max:2000'],
+            'present_address' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
 
+            'permanent_address' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+
+            // NID / Passport Information
             'nid_passport_number' => [
                 'nullable',
                 'string',
@@ -83,6 +134,7 @@ class StoreUserRequest extends FormRequest
                 'regex:/^(?:[0-9]{10}|[0-9]{13}|[0-9]{17}|[A-Za-z]{2}[0-9]{7})$/',
             ],
 
+            // Profile Photo
             'photo' => [
                 'nullable',
                 'image',
@@ -90,7 +142,11 @@ class StoreUserRequest extends FormRequest
                 'max:2048',
             ],
 
-            'nid_images' => ['nullable', 'array'],
+            // NID Images
+            'nid_images' => [
+                'nullable',
+                'array',
+            ],
 
             'nid_images.front' => [
                 'nullable',
@@ -106,6 +162,7 @@ class StoreUserRequest extends FormRequest
                 'max:5120',
             ],
 
+            // Membership Information
             'membership_number' => [
                 'nullable',
                 'string',
@@ -113,11 +170,23 @@ class StoreUserRequest extends FormRequest
                 'unique:users,membership_number',
             ],
 
-            'bar_join_date' => ['nullable', 'date'],
-            'sanad_number' => ['nullable', 'string', 'max:100'],
-            'sanad_date' => ['nullable', 'date'],
+            'bar_join_date' => [
+                'nullable',
+                'date',
+            ],
 
-            // Role selection permission
+            'sanad_number' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'sanad_date' => [
+                'nullable',
+                'date',
+            ],
+
+            // Role Selection Permission
             'roles' => [
                 $this->user()?->hasPermission('users.assign_roles')
                     ? 'sometimes'
@@ -138,39 +207,101 @@ class StoreUserRequest extends FormRequest
                 'exists:roles,id',
             ],
 
+            // Approval Status
             'approval_status' => [
                 'required',
-                Rule::in(['pending', 'approved', 'rejected']),
-            ],
-
-            'member_status' => [
-                'required',
                 Rule::in([
-                    'member',
-                    'inactive',
-                    'suspended',
-                    'deceased',
-                    'life_member',
-                    'apprentice',
-                    'lawyer_assistant',
-                    'office_staff',
+                    'pending',
+                    'approved',
+                    'rejected',
                 ]),
             ],
 
+            // Member Status
+            'member_status' => [
+                'nullable',
+                Rule::in(User::MEMBER_STATUSES),
+            ],
+
+            // Membership Type
+            'member_type' => [
+                'nullable',
+
+                Rule::requiredIf(
+                    fn () => $memberStatus === User::MEMBER_STATUS_MEMBER
+                ),
+
+                Rule::prohibitedIf(
+                    fn () => $memberStatus !== User::MEMBER_STATUS_MEMBER
+                ),
+
+                Rule::in(User::MEMBER_TYPES),
+            ],
+
+            // Chamber Room Number
+            'chamber_room_no' => [
+                'nullable',
+                'string',
+                'max:50',
+                'required_with:chamber_type',
+
+                Rule::prohibitedIf(
+                    fn () => $memberStatus !== User::MEMBER_STATUS_MEMBER
+                ),
+            ],
+
+            // Chamber Type
+            'chamber_type' => [
+                'nullable',
+                Rule::in(User::CHAMBER_TYPES),
+                'required_with:chamber_room_no',
+
+                Rule::prohibitedIf(
+                    fn () => $memberStatus !== User::MEMBER_STATUS_MEMBER
+                ),
+            ],
+
+            // Lawyer Relationship
             'lawyer_id' => [
                 'nullable',
                 'integer',
-                'prohibited_unless:member_status,lawyer_assistant,apprentice',
+
+                // Required for lawyer assistants.
+                Rule::requiredIf(
+                    fn () => $memberStatus
+                        === User::MEMBER_STATUS_LAWYER_ASSISTANT
+                ),
+
+                // Only apprentices and lawyer assistants can have a lawyer.
+                Rule::prohibitedIf(
+                    fn () => !in_array(
+                        $memberStatus,
+                        [
+                            User::MEMBER_STATUS_LAWYER_ASSISTANT,
+                            User::MEMBER_STATUS_APPRENTICE,
+                        ],
+                        true
+                    )
+                ),
+
+                // Only actual members can be assigned as lawyers.
                 Rule::exists('users', 'id')
-                    ->whereIn('member_status', ['member', 'life_member']),
+                    ->whereIn('member_status', [
+                        User::MEMBER_STATUS_MEMBER,
+                    ]),
             ],
         ];
     }
 
+    /**
+     * Configure additional validation rules.
+     */
     public function after(): array
     {
         return [
             function (Validator $validator): void {
+
+                // Approval Permission Check
                 if (
                     $this->exists('approval_status')
                     && !$this->user()?->hasPermission('users.approve')
@@ -182,10 +313,12 @@ class StoreUserRequest extends FormRequest
                     );
                 }
 
+                // Member Status Permission Check
                 if (
                     $this->exists('member_status')
                     && !$this->user()?->hasPermission('users.change_status')
-                    && $this->input('member_status') !== 'member'
+                    && $this->input('member_status')
+                        !== User::MEMBER_STATUS_MEMBER
                 ) {
                     $validator->errors()->add(
                         'member_status',
@@ -196,20 +329,52 @@ class StoreUserRequest extends FormRequest
         ];
     }
 
+    /**
+     * Custom validation error messages.
+     */
     public function messages(): array
     {
         return [
+
+            // Basic Information
             'full_name.required' => 'The full name is required.',
             'mobile.required' => 'A mobile number is required.',
             'mobile.unique' => 'This mobile number is already registered.',
             'email.unique' => 'This email address is already registered.',
+
+            // Password
             'password.confirmed' => 'The password confirmation does not match.',
+
+            // Approval
             'approval_status.in' => 'Please select a valid approval status.',
+
+            // Member Status
             'member_status.in' => 'Please select a valid member status.',
+
+            // Membership Type
+            'member_type.required' => 'Please select a membership type.',
+            'member_type.in' => 'Please select a valid membership type.',
+            'member_type.prohibited' => 'Membership type is only applicable to members.',
+
+            // Chamber Allocation
+            'chamber_room_no.required_with' => 'Chamber room number is required.',
+            'chamber_room_no.prohibited' => 'Only members can have chamber allocation.',
+            'chamber_type.required_with' => 'Chamber type is required.',
+            'chamber_type.in' => 'Please select a valid chamber type.',
+            'chamber_type.prohibited' => 'Only members can have chamber allocation.',
+
+            // Lawyer Relationship
+            'lawyer_id.required' => 'Please select a lawyer for this lawyer assistant.',
+            'lawyer_id.exists' => 'The selected lawyer is invalid or is not an eligible member.',
+            'lawyer_id.prohibited' => 'This user cannot have an assigned lawyer.',
+
+            // Roles
             'roles.array' => 'The roles field must be an array.',
             'roles.*.integer' => 'Each selected role must be valid.',
             'roles.*.distinct' => 'A role cannot be selected more than once.',
             'roles.*.exists' => 'One or more selected roles do not exist.',
+
+            // NID Images
             'nid_images.front.mimes' => 'The front NID image must be JPG or PNG.',
             'nid_images.back.mimes' => 'The back NID image must be JPG or PNG.',
         ];

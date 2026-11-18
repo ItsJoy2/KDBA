@@ -21,6 +21,43 @@ class User extends Authenticatable
     use Notifiable;
     use SoftDeletes;
 
+
+    public const MEMBER_STATUS_MEMBER = 'member';
+    public const MEMBER_STATUS_APPRENTICE = 'apprentice';
+    public const MEMBER_STATUS_LAWYER_ASSISTANT = 'lawyer_assistant';
+    public const MEMBER_STATUS_INACTIVE = 'inactive';
+    public const MEMBER_STATUS_SUSPENDED = 'suspended';
+    public const MEMBER_STATUS_DECEASED = 'deceased';
+    public const MEMBER_STATUS_OFFICE_STAFF = 'office_staff';
+
+    public const MEMBER_TYPE_MOTHER = 'mother_member';
+    public const MEMBER_TYPE_SUB = 'sub_member';
+
+    public const CHAMBER_TYPE_STANDARD = 'standard';
+    public const CHAMBER_TYPE_JOINT = 'joint';
+    public const CHAMBER_TYPE_AC = 'ac';
+
+    public const MEMBER_STATUSES = [
+        self::MEMBER_STATUS_MEMBER,
+        self::MEMBER_STATUS_APPRENTICE,
+        self::MEMBER_STATUS_LAWYER_ASSISTANT,
+        self::MEMBER_STATUS_INACTIVE,
+        self::MEMBER_STATUS_SUSPENDED,
+        self::MEMBER_STATUS_DECEASED,
+        self::MEMBER_STATUS_OFFICE_STAFF,
+    ];
+
+    public const MEMBER_TYPES = [
+        self::MEMBER_TYPE_MOTHER,
+        self::MEMBER_TYPE_SUB,
+    ];
+
+    public const CHAMBER_TYPES = [
+        self::CHAMBER_TYPE_STANDARD,
+        self::CHAMBER_TYPE_JOINT,
+        self::CHAMBER_TYPE_AC,
+    ];
+
     protected $fillable = [
         'full_name',
         'email',
@@ -43,6 +80,9 @@ class User extends Authenticatable
         'lawyer_id',
         'approval_status',
         'member_status',
+        'member_type',
+        'chamber_room_no',
+        'chamber_type',
     ];
 
     protected $hidden = [
@@ -66,9 +106,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Roles assigned to this user.
-     */
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -81,31 +118,55 @@ class User extends Authenticatable
 
     public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(
-            self::class,
-            'created_by'
-        );
+        return $this->belongsTo(self::class, 'created_by');
     }
 
     public function updatedBy(): BelongsTo
     {
-        return $this->belongsTo(
-            self::class,
-            'updated_by'
-        );
+        return $this->belongsTo(self::class, 'updated_by');
     }
 
-    /**
-     * Scope for active membership records.
-     */
     public function scopeActive($query)
     {
         return $query->where('status', 'Active');
     }
 
-    /**
-     * Route notifications to the user's email address.
-     */
+    public function scopeMembers($query)
+    {
+        return $query->where(
+            'member_status',
+            self::MEMBER_STATUS_MEMBER
+        );
+    }
+
+    public function scopeMotherMembers($query)
+    {
+        return $query->members()
+            ->where('member_type', self::MEMBER_TYPE_MOTHER);
+    }
+
+    public function scopeSubMembers($query)
+    {
+        return $query->members()
+            ->where('member_type', self::MEMBER_TYPE_SUB);
+    }
+
+    public function scopeApprentices($query)
+    {
+        return $query->where(
+            'member_status',
+            self::MEMBER_STATUS_APPRENTICE
+        );
+    }
+
+    public function scopeLawyerAssistants($query)
+    {
+        return $query->where(
+            'member_status',
+            self::MEMBER_STATUS_LAWYER_ASSISTANT
+        );
+    }
+
     public function routeNotificationForMail(
         ?object $notification = null
     ): ?string {
@@ -114,17 +175,12 @@ class User extends Authenticatable
 
     public function lawyer(): BelongsTo
     {
-        return $this->belongsTo(
-            User::class,
-            'lawyer_id'
-        );
+        return $this->belongsTo(User::class, 'lawyer_id');
     }
+
     public function assistants(): HasMany
     {
-        return $this->hasMany(
-            User::class,
-            'lawyer_id'
-        );
+        return $this->hasMany(User::class, 'lawyer_id');
     }
 
     public function scopeForLawyer(
@@ -140,10 +196,59 @@ class User extends Authenticatable
     {
         return $this->member_status === 'lawyer_assistant';
     }
+
     public function hasAssistants(): bool
     {
         return $this->assistants()->exists();
     }
+
+    public function isMember(): bool
+    {
+        return $this->member_status === self::MEMBER_STATUS_MEMBER;
+    }
+
+    public function isMotherMember(): bool
+    {
+        return $this->isMember()
+            && $this->member_type === self::MEMBER_TYPE_MOTHER;
+    }
+
+    public function isSubMember(): bool
+    {
+        return $this->isMember()
+            && $this->member_type === self::MEMBER_TYPE_SUB;
+    }
+
+    public function isApprentice(): bool
+    {
+        return $this->member_status === self::MEMBER_STATUS_APPRENTICE;
+    }
+
+    public function hasChamberAllocation(): bool
+    {
+        return filled($this->chamber_room_no)
+            && filled($this->chamber_type);
+    }
+
+    public function getChamberTypeLabelAttribute(): ?string
+    {
+        return match ($this->chamber_type) {
+            self::CHAMBER_TYPE_STANDARD => 'Standard Chamber',
+            self::CHAMBER_TYPE_JOINT => 'Joint Chamber',
+            self::CHAMBER_TYPE_AC => 'AC Chamber',
+            default => null,
+        };
+    }
+
+    public function getMemberTypeLabelAttribute(): ?string
+    {
+        return match ($this->member_type) {
+            self::MEMBER_TYPE_MOTHER => 'Mother Member',
+            self::MEMBER_TYPE_SUB => 'Sub Member',
+            default => null,
+        };
+    }
+
     public function hasTwoFactorPhone(): bool
     {
         return filled($this->two_factor_phone)
@@ -176,6 +281,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class, 'verified_by');
     }
+
     public function user()
     {
         return $this->belongsTo(User::class);

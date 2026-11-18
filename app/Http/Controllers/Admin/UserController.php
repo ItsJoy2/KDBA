@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\Invoice;
 use App\Models\PaymentGateway;
 use App\Models\Role;
@@ -17,12 +17,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 class UserController extends Controller
@@ -34,21 +34,24 @@ class UserController extends Controller
     ];
 
     private const MEMBER_STATUSES = [
-        'member',
-        'inactive',
-        'suspended',
-        'deceased',
-        'life_member',
-        'apprentice',
-        'lawyer_assistant',
-        'office_staff',
+        User::MEMBER_STATUS_MEMBER,
+        User::MEMBER_STATUS_APPRENTICE,
+        User::MEMBER_STATUS_LAWYER_ASSISTANT,
+        User::MEMBER_STATUS_INACTIVE,
+        User::MEMBER_STATUS_SUSPENDED,
+        User::MEMBER_STATUS_DECEASED,
+        User::MEMBER_STATUS_OFFICE_STAFF,
     ];
 
     public function index(Request $request): View
     {
+        $actor = $request->user();
+
         abort_unless(
-            $request->user()?->hasPermission('users.view')
-                || $request->user()?->roles()->where('slug', 'super-admin')->exists(),
+            $actor?->hasPermission('users.view')
+                || $actor?->roles()
+                    ->where('slug', 'super-admin')
+                    ->exists(),
             403
         );
 
@@ -79,6 +82,10 @@ class UserController extends Controller
                 'blood_group',
                 'approval_status',
                 'member_status',
+                'member_type',
+                'chamber_room_no',
+                'chamber_type',
+                'lawyer_id',
                 'created_at',
             ])
             ->with([
@@ -86,8 +93,7 @@ class UserController extends Controller
                 'roles:id,name,slug',
             ]);
 
-        // Search by name, email, mobile, membership number or blood group
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim($filters['search']);
 
             $query->where(function (Builder $builder) use ($search) {
@@ -99,14 +105,14 @@ class UserController extends Controller
             });
         }
 
-        if (!empty($filters['approval_status'])) {
+        if (! empty($filters['approval_status'])) {
             $query->where(
                 'approval_status',
                 $filters['approval_status']
             );
         }
 
-        if (!empty($filters['member_status'])) {
+        if (! empty($filters['member_status'])) {
             $query->where(
                 'member_status',
                 $filters['member_status']
@@ -134,9 +140,18 @@ class UserController extends Controller
 
             return $member;
         });
-        $paymentGateways = PaymentGateway::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.users.index', compact('users', 'filters', 'paymentGateways'));
+        $paymentGateways = PaymentGateway::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.users.index', compact(
+            'users',
+            'filters',
+            'paymentGateways'
+        ));
     }
 
     public function create(Request $request): View
@@ -152,17 +167,31 @@ class UserController extends Controller
             ->get();
 
         $lawyers = User::query()
-            ->whereIn('member_status', ['member', 'life_member'])
+            ->where('member_status', User::MEMBER_STATUS_MEMBER)
+            ->whereIn('member_type', User::MEMBER_TYPES)
             ->orderBy('full_name')
-            ->get(['id', 'full_name', 'membership_number']);
+            ->get([
+                'id',
+                'full_name',
+                'membership_number',
+            ]);
 
-        return view('admin.users.create', compact('roles', 'lawyers'));
+        return view('admin.users.create', compact(
+            'roles',
+            'lawyers'
+        ));
     }
 
-    public function store(StoreUserRequest $request, PermissionService $permissionService): RedirectResponse {
+    public function store(
+        StoreUserRequest $request,
+        PermissionService $permissionService
+    ): RedirectResponse {
         $actor = $request->user();
         $data = $request->validated();
 
+        abort_unless($actor, 403);
+
+        // Lawyers can only create their own assistants/apprentices.
         if (! $this->canManageAllUsers($actor)) {
             abort_unless(
                 $this->isEligibleLawyer($actor),
@@ -171,31 +200,33 @@ class UserController extends Controller
             );
 
             abort_unless(
-                ($data['member_status'] ?? null) === ['lawyer_assistant', 'apprentice'],
+                in_array($data['member_status'] ?? null, [
+                    User::MEMBER_STATUS_LAWYER_ASSISTANT,
+                    User::MEMBER_STATUS_APPRENTICE,
+                ], true),
                 403,
-                'You can only create your own lawyer assistants.'
+                'You can only create your own lawyer assistants or apprentices.'
             );
 
             $data['lawyer_id'] = $actor->id;
         }
 
         // Capture role selection before removing request-only fields.
-        // $canAssignRoles = $this->canAssignRoles();
+        $canAssignRoles = $this->canAssignRoles();
 
-        // $rolesSubmitted = $canAssignRoles
-        //     && (bool) ($data['roles_selection_submitted'] ?? false);
+        $rolesSubmitted = $canAssignRoles
+            && (bool) ($data['roles_selection_submitted'] ?? false);
 
-        // $selectedRoleIds = $data['roles'] ?? [];
+        $selectedRoleIds = $data['roles'] ?? [];
 
-        // unset(
-        //     $data['roles'],
-        //     $data['roles_selection_submitted']
-        // );
+        unset(
+            $data['roles'],
+            $data['roles_selection_submitted']
+        );
 
         $uploadedFiles = [];
 
         try {
-            // Store the user's photo privately.
             if ($request->hasFile('photo')) {
                 $data['photo'] = $this->storePrivateFile(
                     $request->file('photo'),
@@ -205,7 +236,6 @@ class UserController extends Controller
                 $uploadedFiles[] = $data['photo'];
             }
 
-            // Store NID images privately.
             $nidImages = [];
 
             foreach (['front', 'back'] as $side) {
@@ -226,53 +256,64 @@ class UserController extends Controller
                 $data,
                 $nidImages,
                 $actor,
-                $permissionService
+                $permissionService,
+                $canAssignRoles,
+                $rolesSubmitted,
+                $selectedRoleIds
             ) {
                 $user = new User();
 
-                // Assign validated user fields.
                 $user->forceFill($data);
 
                 $user->nid_images = $nidImages ?: null;
                 $user->created_by = $actor->id;
                 $user->updated_by = $actor->id;
 
-                // Keep the legacy status column synchronized.
+                // Clear membership-specific fields for non-members.
+                if ($user->member_status !== User::MEMBER_STATUS_MEMBER) {
+                    $user->member_type = null;
+                    $user->chamber_room_no = null;
+                    $user->chamber_type = null;
+                }
+
                 $user->status = $this->legacyStatus(
-                    $user->member_status ?? 'active'
+                    $user->member_status
                 );
 
-            $user->save();
+                $user->save();
 
-            // Create registration invoice for member and life member.
-            if (in_array($user->member_status, ['member', 'life_member'], true)) {
+                // Generate initial admission invoice for members only.
+                if ($user->isMember() && $user->member_type) {
+                    app(MembershipFeeService::class)
+                        ->createRegistrationInvoice($user, $actor->id);
+                }
 
-                app(MembershipFeeService::class)
-                    ->createRegistrationInvoice($user);
+                if ($canAssignRoles && $rolesSubmitted) {
+                    $roleIds = $this->resolveRoleIds(
+                        $selectedRoleIds,
+                        $user->member_status
+                    );
+                } else {
+                    $roleIds = $this->defaultRoleIds(
+                        $user->member_status
+                    );
+                }
 
-            }
+                $this->syncUserRoles(
+                    $user,
+                    $roleIds,
+                    $permissionService
+                );
 
-            $roleIds = $this->defaultRoleIds(
-                $user->member_status ?? 'member'
-            );
-
-            $this->syncUserRoles(
-                $user,
-                $roleIds,
-                $permissionService
-            );
-
-            return $user;
+                return $user;
             });
 
-            // Clear cached user/permission data after a successful commit.
             $this->clearUserCaches();
 
             return redirect()
-                ->route('users.index', $user)
+                ->route('users.show', $user)
                 ->with('success', 'User created successfully.');
         } catch (Throwable $exception) {
-            // Remove privately stored files if user creation fails.
             foreach ($uploadedFiles as $path) {
                 Storage::disk('local')->delete($path);
             }
@@ -295,15 +336,15 @@ class UserController extends Controller
 
     public function show(Request $request, User $user): View
     {
-        $target = $this->findManageableUser(
-            $request->user(),
-            $user
-        );
+        $actor = $request->user();
 
-        $user = $target;
+        $user = $this->findManageableUser($actor, $user);
 
         abort_unless(
-            $request->user()?->hasPermission('users.view'),
+            $actor?->hasPermission('users.view')
+                || $actor?->roles()
+                    ->where('slug', 'super-admin')
+                    ->exists(),
             403
         );
 
@@ -312,7 +353,7 @@ class UserController extends Controller
         $photoUrl = null;
 
         if ($user->photo && $disk->exists($user->photo)) {
-            $photoUrl = 'data:' . $disk->mimeType($user->photo)
+            $photoUrl = 'data:' . ($disk->mimeType($user->photo) ?: 'image/jpeg')
                 . ';base64,' . base64_encode($disk->get($user->photo));
         }
 
@@ -321,16 +362,16 @@ class UserController extends Controller
         foreach (['front', 'back'] as $side) {
             $path = data_get($user->nid_images, $side);
 
-            $nidImages[$side] = $path && $disk->exists($path)
-                ? 'data:' . $disk->mimeType($path)
+            $nidImages[$side] = (
+                $path && $disk->exists($path)
+            )
+                ? 'data:' . ($disk->mimeType($path) ?: 'image/jpeg')
                     . ';base64,' . base64_encode($disk->get($path))
                 : null;
         }
 
-        // Load the user's currently assigned roles
         $user->load('roles');
 
-        // Available roles for assignment (exclude Super Admin)
         $roles = Role::query()
             ->where('slug', '!=', 'super-admin')
             ->orderBy('name')
@@ -346,14 +387,13 @@ class UserController extends Controller
 
     public function edit(Request $request, User $user): View
     {
-        $member = $this->findManageableUser(
-            $request->user(),
-            $user
-        );
+        $actor = $request->user();
+
+        $member = $this->findManageableUser($actor, $user);
 
         abort_unless(
-            $request->user()?->hasPermission('users.edit')
-                || $request->user()?->roles()
+            $actor?->hasPermission('users.edit')
+                || $actor?->roles()
                     ->where('slug', 'super-admin')
                     ->exists(),
             403
@@ -363,7 +403,6 @@ class UserController extends Controller
 
         $disk = Storage::disk('local');
 
-        // Member photo
         $photoUrl = null;
 
         if ($member->photo && $disk->exists($member->photo)) {
@@ -372,7 +411,6 @@ class UserController extends Controller
                 . base64_encode($disk->get($member->photo));
         }
 
-        // NID front and back
         $nidImages = [];
 
         foreach (['front', 'back'] as $side) {
@@ -387,18 +425,16 @@ class UserController extends Controller
                 : null;
         }
 
-        // Available roles
         $roles = Role::query()
             ->where('slug', '!=', 'super-admin')
             ->orderBy('name')
             ->get();
 
-        // Currently assigned roles
         $member->load('roles');
 
-        // Eligible lawyers
         $lawyers = User::query()
-            ->whereIn('member_status', ['member', 'life_member'])
+            ->where('member_status', User::MEMBER_STATUS_MEMBER)
+            ->whereIn('member_type', User::MEMBER_TYPES)
             ->where('id', '!=', $member->id)
             ->orderBy('full_name')
             ->get([
@@ -430,23 +466,24 @@ class UserController extends Controller
         );
 
         $target = $this->findManageableUser($actor, $user);
-        $user = $target;
 
         $data = $request->validated();
 
-        // Restrict lawyers to updating their own lawyer assistants.
+        // Lawyers can only update their own assistants/apprentices.
         if (! $this->canManageAllUsers($actor)) {
             abort_unless(
-                $target->member_status === 'lawyer_assistant',
+                $target->lawyer_id === $actor->id
+                    && in_array($target->member_status, [
+                        User::MEMBER_STATUS_LAWYER_ASSISTANT,
+                        User::MEMBER_STATUS_APPRENTICE,
+                    ], true),
                 403,
-                'You can only update your own lawyer assistants.'
+                'You can only update your own lawyer assistants or apprentices.'
             );
 
-            // Ignore any lawyer_id submitted by the form.
             $data['lawyer_id'] = $actor->id;
         }
 
-        // Capture role selection before removing request-only fields.
         $canAssignRoles = $this->canAssignRoles();
 
         $rolesSubmitted = $canAssignRoles
@@ -463,7 +500,6 @@ class UserController extends Controller
         $oldFilesToDelete = [];
 
         try {
-            // Upload a new profile photo.
             if ($request->hasFile('photo')) {
                 $newPhoto = $this->storePrivateFile(
                     $request->file('photo'),
@@ -472,15 +508,14 @@ class UserController extends Controller
 
                 $uploadedFiles[] = $newPhoto;
 
-                if ($user->photo) {
-                    $oldFilesToDelete[] = $user->photo;
+                if ($target->photo) {
+                    $oldFilesToDelete[] = $target->photo;
                 }
 
                 $data['photo'] = $newPhoto;
             }
 
-            // Preserve existing NID images unless replaced.
-            $existingNidImages = $user->nid_images ?? [];
+            $existingNidImages = $target->nid_images ?? [];
 
             foreach (['front', 'back'] as $side) {
                 if ($request->hasFile("nid_images.{$side}")) {
@@ -502,79 +537,96 @@ class UserController extends Controller
             unset($data['nid_images']);
 
             DB::transaction(function () use (
-                $user,
+                $target,
                 $data,
                 $existingNidImages,
                 $request,
                 $canAssignRoles,
                 $rolesSubmitted,
                 $selectedRoleIds,
-                $permissionService
+                $permissionService,
+                $actor
             ) {
-                // Apply validated user fields.
-                $user->forceFill($data);
+                $lockedUser = User::query()
+                    ->whereKey($target->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-                // Detect status changes before saving.
-                $memberStatusChanged = $user->isDirty('member_status');
+                $lockedUser->forceFill($data);
 
-                // Update NID images only when a new image was uploaded.
+                $memberStatusChanged = $lockedUser->isDirty('member_status');
+
+                $memberTypeChanged = $lockedUser->isDirty('member_type');
+
                 if (
                     $request->hasFile('nid_images.front')
                     || $request->hasFile('nid_images.back')
                 ) {
-                    $user->nid_images = $existingNidImages ?: null;
+                    $lockedUser->nid_images = $existingNidImages ?: null;
                 }
 
-                $user->updated_by = $request->user()->id;
+                // Remove membership-only fields when status is not member.
+                if ($lockedUser->member_status !== User::MEMBER_STATUS_MEMBER) {
+                    $lockedUser->member_type = null;
+                    $lockedUser->chamber_room_no = null;
+                    $lockedUser->chamber_type = null;
+                }
 
-                // Keep the legacy status column synchronized.
+                $lockedUser->updated_by = $actor->id;
+
                 if ($memberStatusChanged) {
-                    $user->status = $this->legacyStatus(
-                        $user->member_status ?? 'active'
+                    $lockedUser->status = $this->legacyStatus(
+                        $lockedUser->member_status
                     );
                 }
 
-                $user->save();
+                $lockedUser->save();
 
-                // Explicit role selection takes precedence over defaults.
+                // Create initial admission invoice when a member is assigned.
+                if (
+                    $lockedUser->isMember()
+                    && $lockedUser->member_type
+                    && ($memberStatusChanged || $memberTypeChanged)
+                ) {
+                    app(MembershipFeeService::class)
+                        ->createRegistrationInvoice($lockedUser, $actor->id);
+                }
+
                 if ($canAssignRoles && $rolesSubmitted) {
                     $roleIds = $this->resolveRoleIds(
                         $selectedRoleIds,
-                        $user->member_status
+                        $lockedUser->member_status
                     );
 
                     $this->syncUserRoles(
-                        $user,
+                        $lockedUser,
                         $roleIds,
                         $permissionService
                     );
                 } elseif ($memberStatusChanged) {
-                    // Automatically update roles when member status changes.
                     $roleIds = $this->defaultRoleIds(
-                        $user->member_status
+                        $lockedUser->member_status
                     );
 
                     $this->syncUserRoles(
-                        $user,
+                        $lockedUser,
                         $roleIds,
                         $permissionService
                     );
                 }
             });
 
-            // Delete replaced files only after the transaction succeeds.
-            foreach ($oldFilesToDelete as $path) {
+            // Delete replaced files only after successful DB commit.
+            foreach (array_unique($oldFilesToDelete) as $path) {
                 Storage::disk('local')->delete($path);
             }
 
             $this->clearUserCaches();
 
             return redirect()
-                ->route('users.show', $user)
+                ->route('users.show', $target)
                 ->with('success', 'User updated successfully.');
-
         } catch (Throwable $exception) {
-            // Remove newly uploaded files if the update fails.
             foreach ($uploadedFiles as $path) {
                 Storage::disk('local')->delete($path);
             }
@@ -594,7 +646,6 @@ class UserController extends Controller
                 );
         }
     }
-
 
     public function approve(Request $request, User $user): RedirectResponse
     {
@@ -632,8 +683,11 @@ class UserController extends Controller
         );
     }
 
-    public function changeStatus(Request $request, User $user): RedirectResponse
-    {
+    public function changeStatus(
+        Request $request,
+        User $user,
+        PermissionService $permissionService
+    ): RedirectResponse {
         abort_unless(
             $request->user()?->hasPermission('users.change_status'),
             403
@@ -644,24 +698,77 @@ class UserController extends Controller
                 'required',
                 Rule::in(self::MEMBER_STATUSES),
             ],
+            'member_type' => [
+                'nullable',
+                Rule::requiredIf(
+                    fn () => $request->input('member_status')
+                        === User::MEMBER_STATUS_MEMBER
+                ),
+                Rule::prohibitedIf(
+                    fn () => $request->input('member_status')
+                        !== User::MEMBER_STATUS_MEMBER
+                ),
+                Rule::in(User::MEMBER_TYPES),
+            ],
         ]);
 
-        DB::transaction(function () use ($user, $data, $request) {
+        DB::transaction(function () use (
+            $user,
+            $data,
+            $request,
+            $permissionService
+        ) {
             $lockedUser = User::query()
                 ->whereKey($user->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $lockedUser->forceFill([
-                'member_status' => $data['member_status'],
-                'status' => $this->legacyStatus($data['member_status']),
-                'updated_by' => $request->user()->id,
-            ])->save();
+            $lockedUser->member_status = $data['member_status'];
+
+            if ($data['member_status'] === User::MEMBER_STATUS_MEMBER) {
+                $lockedUser->member_type = $data['member_type'];
+            } else {
+                $lockedUser->member_type = null;
+                $lockedUser->chamber_room_no = null;
+                $lockedUser->chamber_type = null;
+            }
+
+            $lockedUser->status = $this->legacyStatus(
+                $lockedUser->member_status
+            );
+
+            $lockedUser->updated_by = $request->user()->id;
+
+            $lockedUser->save();
+
+            if (
+                $lockedUser->isMember()
+                && $lockedUser->member_type
+            ) {
+                app(MembershipFeeService::class)
+                    ->createRegistrationInvoice(
+                        $lockedUser,
+                        $request->user()->id
+                    );
+            }
+
+            $roleIds = $this->defaultRoleIds(
+                $lockedUser->member_status
+            );
+
+            $this->syncUserRoles(
+                $lockedUser,
+                $roleIds,
+                $permissionService
+            );
         });
 
         $this->clearUserCaches();
 
-        return back()->with('success', 'Member status updated successfully.');
+        return back()->with(
+            'success',
+            'Member status updated successfully.'
+        );
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -671,7 +778,6 @@ class UserController extends Controller
             403
         );
 
-        // Prevent accidental deletion of the currently authenticated account.
         abort_if(
             $request->user()->is($user),
             422,
@@ -696,9 +802,10 @@ class UserController extends Controller
             ->with('success', 'User archived successfully.');
     }
 
-
-    public function updateApproval(Request $request, User $user): RedirectResponse
-    {
+    public function updateApproval(
+        Request $request,
+        User $user
+    ): RedirectResponse {
         abort_unless(
             $request->user()?->hasPermission('users.approve'),
             403,
@@ -708,42 +815,57 @@ class UserController extends Controller
         $validated = $request->validate([
             'approval_status' => [
                 'required',
-                Rule::in(['pending', 'approved', 'rejected']),
+                Rule::in(self::APPROVAL_STATUSES),
             ],
         ]);
 
-        $user->approval_status = $validated['approval_status'];
-        $user->updated_by = $request->user()->id;
-        $user->save();
+        DB::transaction(function () use ($user, $validated, $request) {
+            $lockedUser = User::query()
+                ->whereKey($user->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return back()->with('success', 'Approval status updated successfully.');
+            $lockedUser->approval_status = $validated['approval_status'];
+            $lockedUser->updated_by = $request->user()->id;
+            $lockedUser->save();
+        });
+
+        $this->clearUserCaches();
+
+        return back()->with(
+            'success',
+            'Approval status updated successfully.'
+        );
     }
 
-    private function storePrivateFile(UploadedFile $file,string $directory): string {
+    private function storePrivateFile(
+        UploadedFile $file,
+        string $directory
+    ): string {
         $path = $file->store($directory, 'local');
 
-        if (!$path) {
-            throw new \RuntimeException('Unable to store uploaded file.');
+        if (! $path) {
+            throw new RuntimeException(
+                'Unable to store uploaded file.'
+            );
         }
 
         return $path;
     }
 
-    private function legacyStatus(string $memberStatus): string
+    private function legacyStatus(?string $memberStatus): string
     {
         return match ($memberStatus) {
-            'member' => 'Active',
-            'inactive' => 'Inactive',
-            'suspended' => 'Suspended',
-            'deceased' => 'Deceased',
-            'life_member' => 'Life Member',
-            'apprentice' => 'Active',
-            'lawyer_assistant' => 'Active',
-            'office_staff' => 'Active',
+            User::MEMBER_STATUS_MEMBER => 'Active',
+            User::MEMBER_STATUS_INACTIVE => 'Inactive',
+            User::MEMBER_STATUS_SUSPENDED => 'Suspended',
+            User::MEMBER_STATUS_DECEASED => 'Deceased',
+            User::MEMBER_STATUS_APPRENTICE,
+            User::MEMBER_STATUS_LAWYER_ASSISTANT,
+            User::MEMBER_STATUS_OFFICE_STAFF => 'Active',
             default => 'Inactive',
         };
     }
-
 
     private function clearUserCaches(): void
     {
@@ -765,11 +887,8 @@ class UserController extends Controller
 
     private function isEligibleLawyer(User $actor): bool
     {
-        return in_array(
-            $actor->member_status,
-            ['member', 'life_member'],
-            true
-        );
+        return $actor->isMember()
+            && in_array($actor->member_type, User::MEMBER_TYPES, true);
     }
 
     private function manageableUsersQuery(User $actor): Builder
@@ -799,28 +918,35 @@ class UserController extends Controller
         return auth()->user()?->hasPermission('users.assign_roles') ?? false;
     }
 
-    private function defaultRoleIds(string $memberStatus): array
+    private function defaultRoleIds(?string $memberStatus): array
     {
-        $roleSlug = config(
-            "member_roles.mapping.{$memberStatus}",
-            'member'
-        );
+        $roleSlug = $memberStatus
+            ? config("member_roles.mapping.{$memberStatus}", 'member')
+            : 'general-user';
 
         $role = Role::query()
             ->where('slug', $roleSlug)
             ->where('slug', '!=', 'super-admin')
             ->first();
 
-        // Never leave a new user without a default role.
+        // General Portal User must not automatically receive member role.
+        if (! $role && $memberStatus === null) {
+            throw new RuntimeException(
+                'The general-user role is missing. Please create it first.'
+            );
+        }
+
+        // Fallback for other member-status mappings.
         if (! $role) {
             $role = Role::query()
                 ->where('slug', 'member')
+                ->where('slug', '!=', 'super-admin')
                 ->first();
         }
 
         if (! $role) {
-            throw new \RuntimeException(
-                'Default Member role is missing. Please create it first.'
+            throw new RuntimeException(
+                'Default role is missing. Please create it first.'
             );
         }
 
@@ -829,20 +955,25 @@ class UserController extends Controller
 
     private function resolveRoleIds(
         array $selectedRoleIds,
-        string $memberStatus
+        ?string $memberStatus
     ): array {
-        // No custom roles selected: use the member-status default.
         if (empty($selectedRoleIds)) {
             return $this->defaultRoleIds($memberStatus);
         }
+
+        $selectedRoleIds = array_values(array_unique(
+            array_map('intval', $selectedRoleIds)
+        ));
 
         $roles = Role::query()
             ->whereIn('id', $selectedRoleIds)
             ->get();
 
         if (
-            $roles->count() !== count(array_unique($selectedRoleIds)) ||
-            $roles->contains(fn (Role $role) => $role->slug === 'super-admin')
+            $roles->count() !== count($selectedRoleIds)
+            || $roles->contains(
+                fn (Role $role) => $role->slug === 'super-admin'
+            )
         ) {
             throw ValidationException::withMessages([
                 'roles' => 'One or more selected roles are invalid.',
@@ -862,13 +993,22 @@ class UserController extends Controller
         $permissionService->clearUserCache($user->id);
     }
 
-    public function updateRole(Request $request,User $user,PermissionService $permissionService): RedirectResponse {
+    public function updateRole(
+        Request $request,
+        User $user,
+        PermissionService $permissionService
+    ): RedirectResponse {
         $actor = $request->user();
 
-        $isSuperAdmin = $actor?->roles()->where('slug', 'super-admin')->where('is_active', true)->exists() ?? false;
+        abort_unless($actor, 403);
+
+        $isSuperAdmin = $actor->roles()
+            ->where('slug', 'super-admin')
+            ->where('is_active', true)
+            ->exists();
 
         abort_unless(
-            $isSuperAdmin || $actor?->hasPermission('users.assign_roles'),
+            $isSuperAdmin || $actor->hasPermission('users.assign_roles'),
             403,
             'You are not authorized to assign roles.'
         );
@@ -886,7 +1026,6 @@ class UserController extends Controller
 
         $role = Role::findOrFail($data['role_id']);
 
-        // Never allow this endpoint to assign the Super Admin role.
         abort_if(
             $role->slug === 'super-admin',
             403,
@@ -924,13 +1063,18 @@ class UserController extends Controller
 
     public function unpaidInvoices(User $user): JsonResponse
     {
+        $actor = auth()->user();
+
         abort_unless(
-            auth()->user()->hasPermission('transactions.create')
-            || auth()->user()->hasPermission('invoices.pay'),
+            $actor
+                && (
+                    $actor->hasPermission('transactions.create')
+                    || $actor->hasPermission('invoices.pay')
+                ),
             403
         );
 
-        if (! in_array($user->member_status, ['member', 'life_member'], true)) {
+        if (! $user->isMember()) {
             return response()->json([
                 'message' => 'This user is not eligible for membership payments.',
                 'invoices' => [],
@@ -960,5 +1104,4 @@ class UserController extends Controller
             'invoices' => $invoices,
         ]);
     }
-
 }
