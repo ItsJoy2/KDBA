@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 
 @section('title', 'Members')
@@ -10,6 +11,7 @@
                 <div class="col-sm-6">
                     <h1 class="mb-0 fs-3">Members</h1>
                 </div>
+
                 <div class="col-sm-6">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb float-sm-end">
@@ -40,18 +42,22 @@
                         {{-- Card Header --}}
                         <div class="card-header">
                             <div class="row g-2 align-items-center">
+
                                 <div class="col-12 col-md-4">
                                     <h3 class="card-title">Member Directory</h3>
                                 </div>
 
                                 <div class="col-12 col-md-8">
-                                    <form method="GET" action="{{ route('users.index') }}"
+                                    <form method="GET"
+                                        action="{{ route('users.index') }}"
                                         class="d-flex flex-wrap justify-content-md-end gap-2">
 
+                                        {{-- Search --}}
                                         <div class="input-group input-group-sm w-auto">
                                             <span class="input-group-text">
                                                 <i class="bi bi-search" aria-hidden="true"></i>
                                             </span>
+
                                             <input
                                                 type="search"
                                                 name="search"
@@ -62,30 +68,26 @@
                                                 style="width: 240px">
                                         </div>
 
-                                        {{-- <select name="approval_status"
-                                            class="form-select form-select-sm w-auto"
-                                            aria-label="Filter by approval status">
-                                            <option value="">All approvals</option>
-                                            @foreach (['pending', 'approved', 'rejected'] as $status)
-                                                <option value="{{ $status }}"
-                                                    @selected(request('approval_status') === $status)>
-                                                    {{ ucfirst($status) }}
-                                                </option>
-                                            @endforeach
-                                        </select> --}}
-
+                                        {{-- Member Status Filter --}}
                                         <select name="member_status"
                                             class="form-select form-select-sm w-auto"
                                             aria-label="Filter by member status">
+
                                             <option value="">All statuses</option>
+
+                                            <option value="__general__"
+                                                @selected(request('member_status') === '__general__')>
+                                                General Portal User
+                                            </option>
+
                                             @foreach ([
                                                 'member',
+                                                'apprentice',
+                                                'lawyer_assistant',
                                                 'inactive',
                                                 'suspended',
                                                 'deceased',
-                                                'life_member',
-                                                'apprentice',
-                                                'lawyer_assistant',
+                                                'office_staff',
                                             ] as $status)
                                                 <option value="{{ $status }}"
                                                     @selected(request('member_status') === $status)>
@@ -94,20 +96,28 @@
                                             @endforeach
                                         </select>
 
+                                        {{-- Filter Button --}}
                                         <button type="submit" class="btn btn-sm btn-primary">
                                             <i class="bi bi-funnel me-1" aria-hidden="true"></i>
                                             Filter
                                         </button>
 
-                                        @if (request()->hasAny(['search', 'approval_status', 'member_status', 'per_page']))
+                                        {{-- Clear Filters --}}
+                                        @if (request()->hasAny([
+                                            'search',
+                                            'approval_status',
+                                            'member_status',
+                                            'per_page',
+                                        ]))
                                             <a href="{{ route('users.index') }}"
-                                            class="btn btn-sm btn-outline-secondary"
-                                            title="Clear filters"
-                                            aria-label="Clear filters">
+                                                class="btn btn-sm btn-outline-secondary"
+                                                title="Clear filters"
+                                                aria-label="Clear filters">
                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                             </a>
                                         @endif
 
+                                        {{-- Create Member --}}
                                         @if (auth()->user()->hasPermission('users.create'))
                                             <a href="{{ route('users.create') }}"
                                                 class="btn btn-sm btn-success">
@@ -116,6 +126,7 @@
                                                 New member
                                             </a>
                                         @endif
+
                                     </form>
                                 </div>
                             </div>
@@ -125,6 +136,7 @@
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle m-0">
+
                                     <thead>
                                         <tr>
                                             <th class="ps-3">Member</th>
@@ -133,6 +145,7 @@
                                             <th>Blood Group</th>
                                             <th>Role</th>
                                             <th>Member Status</th>
+                                            <th>Chamber</th>
                                             <th>Joined</th>
                                             <th class="text-end pe-3">Actions</th>
                                         </tr>
@@ -141,8 +154,11 @@
                                     <tbody>
                                         @forelse ($users as $member)
                                             <tr>
+
+                                                {{-- Member Information --}}
                                                 <td class="ps-3">
                                                     <div class="d-flex align-items-center">
+
                                                         @if ($member->photo_url)
                                                             <img
                                                                 src="{{ $member->photo_url }}"
@@ -162,25 +178,32 @@
                                                             <div class="fw-medium">
                                                                 {{ $member->full_name }}
                                                             </div>
+
                                                             <small class="text-body-secondary">
                                                                 #{{ $member->id }}
                                                             </small>
                                                         </div>
+
                                                     </div>
                                                 </td>
 
+                                                {{-- Contact --}}
                                                 <td>
                                                     <div>{{ $member->mobile ?: '—' }}</div>
+
                                                     <small class="text-body-secondary">
                                                         {{ $member->email ?: 'No email' }}
                                                     </small>
                                                 </td>
 
+                                                {{-- Membership Number --}}
                                                 <td>
                                                     {{ $member->membership_number ?: '—' }}
                                                 </td>
+
+                                                {{-- Blood Group --}}
                                                 <td>
-                                                    @if($member->blood_group)
+                                                    @if ($member->blood_group)
                                                         <span class="badge text-bg-danger">
                                                             {{ $member->blood_group }}
                                                         </span>
@@ -189,54 +212,73 @@
                                                     @endif
                                                 </td>
 
+                                                {{-- Roles --}}
                                                 <td>
-                                                    @forelse($member->roles as $role)
+                                                    @forelse ($member->roles as $role)
                                                         <span class="badge text-bg-primary mb-1">
                                                             {{ $role->name }}
                                                         </span>
                                                     @empty
-                                                        <span class="text-muted">No role assigned</span>
+                                                        <span class="text-muted">
+                                                            No role assigned
+                                                        </span>
                                                     @endforelse
                                                 </td>
 
-                                                {{-- <td>
-                                                    @php
-                                                        $approvalColors = [
-                                                            'pending' => 'warning',
-                                                            'approved' => 'success',
-                                                            'rejected' => 'danger',
-                                                        ];
-                                                        $approvalStatus = $member->approval_status;
-                                                    @endphp
-
-                                                    <span class="badge text-bg-{{ $approvalColors[$approvalStatus] ?? 'secondary' }}">
-                                                        {{ ucfirst($approvalStatus ?? 'unknown') }}
-                                                    </span>
-                                                </td> --}}
-
+                                                {{-- Member Status --}}
                                                 <td>
                                                     @php
                                                         $statusColors = [
                                                             'member' => 'success',
-                                                            'life_member' => 'success',
                                                             'apprentice' => 'info',
                                                             'lawyer_assistant' => 'info',
                                                             'inactive' => 'secondary',
                                                             'suspended' => 'danger',
                                                             'deceased' => 'dark',
+                                                            'office_staff' => 'primary',
                                                         ];
+
                                                         $memberStatus = $member->member_status;
+
+                                                        $statusLabel = $memberStatus
+                                                            ? ucwords(str_replace('_', ' ', $memberStatus))
+                                                            : 'General Portal User';
                                                     @endphp
 
                                                     <span class="badge text-bg-{{ $statusColors[$memberStatus] ?? 'secondary' }}">
-                                                        {{ ucwords(str_replace('_', ' ', $memberStatus ?? 'unknown')) }}
+                                                        {{ $statusLabel }}
                                                     </span>
+
+                                                    @if ($member->member_type)
+                                                        <div class="small text-body-secondary mt-1">
+                                                            {{ $member->member_type === 'mother_member'
+                                                                ? 'Mother Member'
+                                                                : 'Sub Member' }}
+                                                        </div>
+                                                    @endif
                                                 </td>
 
+                                                {{-- Chamber Information --}}
+                                                <td>
+                                                    @if ($member->chamber_type)
+                                                        <div class="fw-medium">
+                                                            {{ ucwords(str_replace('_', ' ', $member->chamber_type)) }}
+                                                        </div>
+
+                                                        <small class="text-body-secondary">
+                                                            Room: {{ $member->chamber_room_no ?: '—' }}
+                                                        </small>
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+
+                                                {{-- Joined Date --}}
                                                 <td>
                                                     {{ $member->created_at?->format('d M Y') ?? '—' }}
                                                 </td>
 
+                                                {{-- Actions --}}
                                                 <td class="text-end pe-3 align-middle">
                                                     <div class="d-flex align-items-center justify-content-end gap-2 flex-nowrap"
                                                         role="group"
@@ -245,9 +287,9 @@
                                                         {{-- View --}}
                                                         @if (auth()->user()->hasPermission('users.view'))
                                                             <a href="{{ route('users.show', $member) }}"
-                                                            class="btn btn-sm btn-outline-primary member-action-btn"
-                                                            aria-label="View {{ $member->full_name }}"
-                                                            title="View">
+                                                                class="btn btn-sm btn-outline-primary member-action-btn"
+                                                                aria-label="View {{ $member->full_name }}"
+                                                                title="View">
                                                                 <i class="bi bi-eye"></i>
                                                             </a>
                                                         @endif
@@ -255,9 +297,9 @@
                                                         {{-- Edit --}}
                                                         @if (auth()->user()->hasPermission('users.edit'))
                                                             <a href="{{ route('users.edit', $member) }}"
-                                                            class="btn btn-sm btn-outline-secondary member-action-btn"
-                                                            aria-label="Edit {{ $member->full_name }}"
-                                                            title="Edit">
+                                                                class="btn btn-sm btn-outline-secondary member-action-btn"
+                                                                aria-label="Edit {{ $member->full_name }}"
+                                                                title="Edit">
                                                                 <i class="bi bi-pencil"></i>
                                                             </a>
                                                         @endif
@@ -279,9 +321,9 @@
                                                                     value="approved">
 
                                                                 <button type="submit"
-                                                                        class="btn btn-sm btn-outline-success member-action-btn"
-                                                                        title="Approve member"
-                                                                        aria-label="Approve {{ $member->full_name }}">
+                                                                    class="btn btn-sm btn-outline-success member-action-btn"
+                                                                    title="Approve member"
+                                                                    aria-label="Approve {{ $member->full_name }}">
                                                                     <i class="bi bi-check-lg"></i>
                                                                 </button>
                                                             </form>
@@ -301,23 +343,26 @@
                                                                 @method('DELETE')
 
                                                                 <button type="submit"
-                                                                        class="btn btn-sm btn-outline-danger member-action-btn"
-                                                                        aria-label="Delete {{ $member->full_name }}"
-                                                                        title="Delete">
+                                                                    class="btn btn-sm btn-outline-danger member-action-btn"
+                                                                    aria-label="Delete {{ $member->full_name }}"
+                                                                    title="Delete">
                                                                     <i class="bi bi-trash"></i>
                                                                 </button>
                                                             </form>
                                                         @endif
 
                                                         {{-- Record Payment --}}
-                                                        @if (auth()->user()->hasPermission('transactions.create'))
+                                                        @if (
+                                                            auth()->user()->hasPermission('transactions.create')
+                                                            && $member->member_status === 'member'
+                                                        )
                                                             <button type="button"
-                                                                    class="btn btn-sm btn-outline-success member-action-btn js-open-payment-modal"
-                                                                    data-user-id="{{ $member->id }}"
-                                                                    data-user-name="{{ $member->full_name }}"
-                                                                    data-invoices-url="{{ route('users.unpaid-invoices', $member) }}"
-                                                                    title="Record Payment"
-                                                                    aria-label="Record payment for {{ $member->full_name }}">
+                                                                class="btn btn-sm btn-outline-success member-action-btn js-open-payment-modal"
+                                                                data-user-id="{{ $member->id }}"
+                                                                data-user-name="{{ $member->full_name }}"
+                                                                data-invoices-url="{{ route('users.unpaid-invoices', $member) }}"
+                                                                title="Record Payment"
+                                                                aria-label="Record payment for {{ $member->full_name }}">
                                                                 <i class="bi bi-cash-coin"></i>
                                                             </button>
                                                         @endif
@@ -328,9 +373,13 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="8" class="text-center py-5">
+                                                <td colspan="9" class="text-center py-5">
                                                     <i class="bi bi-people fs-2 d-block mb-2 text-body-secondary"></i>
-                                                    <div class="fw-medium">No members found</div>
+
+                                                    <div class="fw-medium">
+                                                        No members found
+                                                    </div>
+
                                                     <small class="text-body-secondary">
                                                         Try changing your search or filters.
                                                     </small>
@@ -338,171 +387,179 @@
                                             </tr>
                                         @endforelse
                                     </tbody>
+
                                 </table>
                             </div>
                         </div>
 
                         {{-- Reusable Pagination --}}
-                        @include('layouts.partials.__pagination', ['items' => $users,'label' => 'members',
+                        @include('layouts.partials.__pagination', [
+                            'items' => $users,
+                            'label' => 'members',
                         ])
 
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 @endsection
 
+{{-- Payment Modal --}}
 @include('admin.users.partials.__pay')
 @include('admin.users.partials.payment-modal')
 
+@if (auth()->user()->hasPermission('transactions.create'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalElement = document.getElementById('adminPaymentModal');
 
-@if(auth()->user()->hasPermission('transactions.create'))
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const modalElement = document.getElementById('adminPaymentModal');
+            if (!modalElement) {
+                return;
+            }
 
-    if (!modalElement) {
-        return;
-    }
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            const form = document.getElementById('adminPaymentForm');
 
-    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-    const form = document.getElementById('adminPaymentForm');
+            const invoiceSelect = document.getElementById('paymentInvoice');
+            const amountInput = document.getElementById('paymentAmount');
+            const amountValue = document.getElementById('paymentAmountValue');
+            const submitButton = document.getElementById('submitPaymentBtn');
 
-    const invoiceSelect = document.getElementById('paymentInvoice');
-    const amountInput = document.getElementById('paymentAmount');
-    const amountValue = document.getElementById('paymentAmountValue');
-    const submitButton = document.getElementById('submitPaymentBtn');
+            if (!form || !invoiceSelect || !amountInput || !amountValue || !submitButton) {
+                return;
+            }
 
-    function clearErrors() {
-        form.querySelectorAll('.is-invalid').forEach(element => {
-            element.classList.remove('is-invalid');
-        });
-
-        form.querySelectorAll('[data-error]').forEach(element => {
-            element.textContent = '';
-        });
-    }
-
-    function showError(field, message) {
-        const input = form.querySelector(`[name="${field}"]`);
-        const error = form.querySelector(`[data-error="${field}"]`);
-
-        if (input) {
-            input.classList.add('is-invalid');
-        }
-
-        if (error) {
-            error.textContent = message;
-        }
-    }
-
-    function resetInvoiceSelection() {
-        invoiceSelect.innerHTML = '<option value="">Select an invoice</option>';
-        amountInput.value = '';
-        amountValue.value = '';
-    }
-
-    document.querySelectorAll('.js-open-payment-modal').forEach(button => {
-        button.addEventListener('click', async function () {
-            clearErrors();
-            form.reset();
-            resetInvoiceSelection();
-
-            document.getElementById('paymentMemberName').textContent =
-                this.dataset.userName;
-
-            const url = this.dataset.invoicesUrl;
-
-            invoiceSelect.innerHTML =
-                '<option value="">Loading invoices...</option>';
-
-            modal.show();
-
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    credentials: 'same-origin'
+            function clearErrors() {
+                form.querySelectorAll('.is-invalid').forEach(element => {
+                    element.classList.remove('is-invalid');
                 });
 
-                const result = await response.json();
+                form.querySelectorAll('[data-error]').forEach(element => {
+                    element.textContent = '';
+                });
+            }
 
-                if (!response.ok) {
-                    throw new Error(result.message || 'Unable to load invoices.');
+            function showError(field, message) {
+                const input = form.querySelector(`[name="${field}"]`);
+                const error = form.querySelector(`[data-error="${field}"]`);
+
+                if (input) {
+                    input.classList.add('is-invalid');
                 }
 
-                resetInvoiceSelection();
+                if (error) {
+                    error.textContent = message;
+                }
+            }
 
-                if (!result.invoices.length) {
+            function resetInvoiceSelection() {
+                invoiceSelect.innerHTML = '<option value="">Select an invoice</option>';
+                amountInput.value = '';
+                amountValue.value = '';
+            }
+
+            document.querySelectorAll('.js-open-payment-modal').forEach(button => {
+                button.addEventListener('click', async function () {
+                    clearErrors();
+                    form.reset();
+                    resetInvoiceSelection();
+
+                    document.getElementById('paymentMemberName').textContent =
+                        this.dataset.userName;
+
+                    const url = this.dataset.invoicesUrl;
+
                     invoiceSelect.innerHTML =
-                        '<option value="">No unpaid invoice available</option>';
+                        '<option value="">Loading invoices...</option>';
 
+                    modal.show();
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+
+                        const result = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(result.message || 'Unable to load invoices.');
+                        }
+
+                        resetInvoiceSelection();
+
+                        if (!result.invoices || !result.invoices.length) {
+                            invoiceSelect.innerHTML =
+                                '<option value="">No unpaid invoice available</option>';
+
+                            return;
+                        }
+
+                        result.invoices.forEach(invoice => {
+                            const option = document.createElement('option');
+
+                            option.value = invoice.id;
+                            option.dataset.amount = invoice.amount;
+
+                            const type = invoice.invoice_type === 'yearly_renewal'
+                                ? 'Yearly Renewal'
+                                : 'Admission';
+
+                            option.textContent =
+                                `${invoice.invoice_number} — ${type} (${invoice.cycle_key}) — ${invoice.amount}`;
+
+                            invoiceSelect.appendChild(option);
+                        });
+
+                    } catch (error) {
+                        resetInvoiceSelection();
+
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = error.message;
+
+                        invoiceSelect.appendChild(option);
+                    }
+                });
+            });
+
+            invoiceSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const amount = selectedOption?.dataset.amount || '';
+
+                amountInput.value = amount;
+                amountValue.value = amount;
+            });
+
+            form.addEventListener('submit', function (event) {
+                clearErrors();
+
+                if (!invoiceSelect.value) {
+                    event.preventDefault();
+                    showError('invoice_id', 'Please select an unpaid invoice.');
                     return;
                 }
 
-                result.invoices.forEach(invoice => {
-                    const option = document.createElement('option');
+                if (!amountValue.value) {
+                    event.preventDefault();
+                    showError('amount', 'Invoice amount is required.');
+                    return;
+                }
 
-                    option.value = invoice.id;
-                    option.dataset.amount = invoice.amount;
+                submitButton.disabled = true;
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
+            });
 
-                    const type = invoice.invoice_type === 'yearly_renewal'
-                        ? 'Yearly Renewal'
-                        : 'Registration';
-
-                    option.textContent =
-                        `${invoice.invoice_number} — ${type} (${invoice.cycle_key}) — ${invoice.amount}`;
-
-                    invoiceSelect.appendChild(option);
-                });
-
-            } catch (error) {
-                resetInvoiceSelection();
-
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = error.message;
-
-                invoiceSelect.appendChild(option);
-            }
+            // Reopen modal when Laravel redirects back with validation errors.
+            @if ($errors->any() && old('invoice_id'))
+                modal.show();
+            @endif
         });
-    });
-
-    invoiceSelect.addEventListener('change', function () {
-        const selectedOption = this.options[this.selectedIndex];
-        const amount = selectedOption?.dataset.amount || '';
-
-        amountInput.value = amount;
-        amountValue.value = amount;
-    });
-
-    form.addEventListener('submit', function (event) {
-        clearErrors();
-
-        if (!invoiceSelect.value) {
-            event.preventDefault();
-            showError('invoice_id', 'Please select an unpaid invoice.');
-            return;
-        }
-
-        if (!amountValue.value) {
-            event.preventDefault();
-            showError('amount', 'Invoice amount is required.');
-            return;
-        }
-
-        submitButton.disabled = true;
-        submitButton.innerHTML =
-            '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
-    });
-
-    // Reopen modal when Laravel redirects back with validation errors.
-    @if($errors->any() && old('invoice_id'))
-        modal.show();
-    @endif
-});
-</script>
+    </script>
 @endif

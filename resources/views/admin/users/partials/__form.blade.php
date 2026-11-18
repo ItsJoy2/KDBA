@@ -3,14 +3,25 @@
     $currentUser = auth()->user();
 
     $memberStatuses = [
+        // '' => 'General Portal User',
         'member' => 'Member',
+        'apprentice' => 'Apprentice',
+        'lawyer_assistant' => 'Lawyer Assistant',
         'inactive' => 'Inactive',
         'suspended' => 'Suspended',
         'deceased' => 'Deceased',
-        'life_member' => 'Life Member',
-        'apprentice' => 'Apprentice',
-        'lawyer_assistant' => 'Lawyer Assistant',
         'office_staff' => 'Office Staff',
+    ];
+
+    $memberTypes = [
+        'mother_member' => 'Mother Member',
+        'sub_member' => 'Sub Member',
+    ];
+
+    $chamberTypes = [
+        'standard' => 'Standard Chamber',
+        'joint' => 'Joint Chamber',
+        'ac' => 'AC Chamber',
     ];
 
     $approvalStatuses = [
@@ -20,6 +31,10 @@
     ];
 
     $selected = fn ($key, $default = '') => old($key, $member->$key ?? $default);
+
+    $selectedMemberStatus = (string) $selected('member_status', '');
+    $selectedMemberType = (string) $selected('member_type', '');
+    $selectedChamberType = (string) $selected('chamber_type', '');
 @endphp
 
 @include('components.global-feedback')
@@ -334,25 +349,19 @@
                         <h2 class="h5 mb-3">Membership Information</h2>
 
                         <div class="row g-3">
+
                             {{-- Member Status --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="member_status">
-                                    Member Status <span class="text-danger">*</span>
+                                    Member Status
                                 </label>
 
-                                <select
-                                    class="form-select"
-                                    id="member_status"
-                                    name="member_status"
-                                    required
-                                >
-                                    <option value="">Select member status</option>
-
+                                <select class="form-select"
+                                        id="member_status"
+                                        name="member_status">
                                     @foreach($memberStatuses as $value => $label)
-                                        <option
-                                            value="{{ $value }}"
-                                            @selected($selected('member_status', 'member') === $value)
-                                        >
+                                        <option value="{{ $value }}"
+                                            @selected($selectedMemberStatus === $value)>
                                             {{ $label }}
                                         </option>
                                     @endforeach
@@ -361,34 +370,94 @@
                                 @error('member_status')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
+
+                            </div>
+
+                            {{-- Member Type --}}
+                            <div class="col-md-6" id="member-type-wrapper">
+                                <label class="form-label" for="member_type">
+                                    Member Type <span class="text-danger">*</span>
+                                </label>
+
+                                <select class="form-select"
+                                        name="member_type"
+                                        id="member_type">
+                                    <option value="">Select member type</option>
+
+                                    @foreach($memberTypes as $value => $label)
+                                        <option value="{{ $value }}"
+                                            @selected($selectedMemberType === $value)>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+
+                                @error('member_type')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            {{-- Chamber Type --}}
+                            <div class="col-md-6" id="chamber-type-wrapper">
+                                <label class="form-label" for="chamber_type">
+                                    Chamber Type
+                                </label>
+
+                                <select class="form-select"
+                                        name="chamber_type"
+                                        id="chamber_type">
+                                    <option value="">No Chamber Allocation</option>
+
+                                    @foreach($chamberTypes as $value => $label)
+                                        <option value="{{ $value }}"
+                                            @selected($selectedChamberType === $value)>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+
+                                @error('chamber_type')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+
+                            </div>
+
+                            {{-- Chamber Room Number --}}
+                            <div class="col-md-6" id="chamber-room-wrapper">
+                                <label class="form-label" for="chamber_room_no">
+                                    Chamber Room Number
+                                </label>
+
+                                <input type="text"
+                                    class="form-control"
+                                    name="chamber_room_no"
+                                    id="chamber_room_no"
+                                    maxlength="50"
+                                    value="{{ $selected('chamber_room_no') }}"
+                                    placeholder="Enter room number">
+
+                                @error('chamber_room_no')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             {{-- Assigned Lawyer --}}
-                            <div
-                                class="col-md-6"
-                                id="lawyer-assignment-wrapper"
-                            >
+                            <div class="col-md-6" id="lawyer-assignment-wrapper">
                                 <label class="form-label" for="lawyer_id">
                                     Assigned Senior Lawyer / Advocate
+                                    <span class="text-danger">*</span>
                                 </label>
 
-                                <select
-                                    class="form-select"
-                                    name="lawyer_id"
-                                    id="lawyer_id"
-                                >
+                                <select class="form-select"
+                                        name="lawyer_id"
+                                        id="lawyer_id">
                                     <option value="">Select Senior Lawyer / Advocate</option>
 
                                     @foreach($lawyers as $lawyer)
-                                        <option
-                                            value="{{ $lawyer->id }}"
+                                        <option value="{{ $lawyer->id }}"
                                             @selected(
-                                                (string) $selected(
-                                                    'lawyer_id',
-                                                    $member->lawyer_id ?? ''
-                                                ) === (string) $lawyer->id
-                                            )
-                                        >
+                                                (string) $selected('lawyer_id') === (string) $lawyer->id
+                                            )>
                                             {{ $lawyer->full_name }}
                                             @if($lawyer->membership_number)
                                                 — {{ $lawyer->membership_number }}
@@ -402,149 +471,121 @@
                                 @enderror
                             </div>
 
+                            {{-- Membership Number --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-membership">
-                                    Membership number
+                                    Membership Number
                                 </label>
-                                <input type="text" class="form-control"
-                                    id="wz-membership" name="membership_number"
-                                    value="{{ old('membership_number', $member->membership_number ?? '') }}">
+
+                                <input type="text"
+                                    class="form-control"
+                                    id="wz-membership"
+                                    name="membership_number"
+                                    value="{{ $selected('membership_number') }}">
                             </div>
 
+                            {{-- Bar Joining Date --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-bar-date">
-                                    Bar joining date
+                                    Bar Joining Date
                                 </label>
-                                <input type="date" class="form-control"
-                                    id="wz-bar-date" name="bar_join_date"
-                                    value="{{ old('bar_join_date', isset($member) && $member->bar_join_date ? \Illuminate\Support\Carbon::parse($member->bar_join_date)->format('Y-m-d') : '') }}">
+
+                                <input type="date"
+                                    class="form-control"
+                                    id="wz-bar-date"
+                                    name="bar_join_date"
+                                    value="{{ old(
+                                        'bar_join_date',
+                                        isset($member) && $member->bar_join_date
+                                            ? \Illuminate\Support\Carbon::parse($member->bar_join_date)->format('Y-m-d')
+                                            : ''
+                                    ) }}">
                             </div>
 
-                            {{-- <div class="col-md-6">
-                                <label class="form-label" for="wz-sanad">
-                                    Sanad number
-                                </label>
-                                <input type="text" class="form-control"
-                                    id="wz-sanad" name="sanad_number"
-                                    value="{{ old('sanad_number', $member->sanad_number ?? '') }}">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label" for="wz-sanad-date">
-                                    Sanad date
-                                </label>
-                                <input type="date" class="form-control"
-                                    id="wz-sanad-date" name="sanad_date"
-                                    value="{{ old('sanad_date', isset($member) && $member->sanad_date ? \Illuminate\Support\Carbon::parse($member->sanad_date)->format('Y-m-d') : '') }}">
-                            </div> --}}
-
+                            {{-- NID / Passport --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-nid">
-                                    NID / Passport number
+                                    NID / Passport Number
                                 </label>
 
-                                <input
-                                    type="text"
+                                <input type="text"
                                     class="form-control"
                                     id="wz-nid"
                                     name="nid_passport_number"
-                                    value="{{ old('nid_passport_number', $member->nid_passport_number ?? '') }}"
+                                    value="{{ $selected('nid_passport_number') }}"
                                     maxlength="17"
                                     autocomplete="off"
-                                    placeholder="Enter NID or passport number"
-                                >
+                                    placeholder="Enter NID or passport number">
 
                                 <div class="invalid-feedback" id="nid-feedback">
                                     Enter a valid Bangladesh NID or passport number.
                                 </div>
-
-                                <div class="form-text">
-                                    Optional. If provided, enter a valid NID or passport number.
-                                </div>
                             </div>
 
+                            {{-- Member Photo --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-photo">
-                                    Member photo
+                                    Member Photo
                                 </label>
 
-                                <input
-                                    type="file"
+                                <input type="file"
                                     class="form-control"
                                     id="wz-photo"
                                     name="photo"
-                                    accept=".jpg,.jpeg,.png"
-                                >
+                                    accept=".jpg,.jpeg,.png">
 
                                 @if ($editing && !empty($photoUrl))
                                     <div class="mt-2">
-                                        <img
-                                            src="{{ $photoUrl }}"
+                                        <img src="{{ $photoUrl }}"
                                             alt="Current member photo"
                                             class="img-thumbnail"
-                                            style="width: 100px; height: 100px; object-fit: contain;"
-                                        >
-
-                                        <div class="small text-muted mt-1">
-                                            Current member photo
-                                        </div>
+                                            style="width:100px;height:100px;object-fit:contain;">
+                                        <div class="small text-muted mt-1">Current member photo</div>
                                     </div>
                                 @endif
                             </div>
 
+                            {{-- NID Front --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-front">
-                                    NID / Passport front
+                                    NID / Passport Front
                                 </label>
-                                <input type="file" class="form-control"
-                                    id="wz-front" name="nid_images[front]"
+
+                                <input type="file"
+                                    class="form-control"
+                                    id="wz-front"
+                                    name="nid_images[front]"
                                     accept=".jpg,.jpeg,.png">
+
                                 @if ($editing && !empty($nidImages['front']))
                                     <div class="mt-2">
-                                        <img
-                                            src="{{ $nidImages['front'] }}"
+                                        <img src="{{ $nidImages['front'] }}"
                                             alt="Current NID front"
                                             class="img-thumbnail"
-                                            style="max-width: 180px; max-height: 100px; object-fit: contain;"
-                                        >
-                                        <div class="small text-muted mt-1">Current NID front</div>
+                                            style="max-width:180px;max-height:100px;object-fit:contain;">
                                     </div>
-                                @endif
-                                @if(session('temp_nid_front'))
-                                    <img
-                                        data-retained-image="nid_images[front]"
-                                        src="{{ asset('storage/' . session('temp_nid_front')) }}"
-                                        alt="Previously uploaded photo"
-                                        hidden
-                                    >
                                 @endif
                             </div>
 
+                            {{-- NID Back --}}
                             <div class="col-md-6">
                                 <label class="form-label" for="wz-back">
-                                    NID / Passport back
+                                    NID / Passport Back
                                 </label>
-                                <input type="file" class="form-control"
-                                    id="wz-back" name="nid_images[back]"
-                                    accept=".jpg,.jpeg,.png,">
+
+                                <input type="file"
+                                    class="form-control"
+                                    id="wz-back"
+                                    name="nid_images[back]"
+                                    accept=".jpg,.jpeg,.png">
+
                                 @if ($editing && !empty($nidImages['back']))
                                     <div class="mt-2">
-                                        <img
-                                            src="{{ $nidImages['back'] }}"
+                                        <img src="{{ $nidImages['back'] }}"
                                             alt="Current NID back"
                                             class="img-thumbnail"
-                                            style="max-width: 180px; max-height: 100px; object-fit: contain;"
-                                        >
-                                        <div class="small text-muted mt-1">Current NID back</div>
+                                            style="max-width:180px;max-height:100px;object-fit:contain;">
                                     </div>
-                                @endif
-                                @if(session('temp_nid_back'))
-                                    <img
-                                        data-retained-image="nid_images[back]"
-                                        src="{{ asset('storage/' . session('temp_nid_back')) }}"
-                                        alt="Previously uploaded photo"
-                                        hidden
-                                    >
                                 @endif
                             </div>
 
@@ -1053,27 +1094,66 @@
         });
 
         /* ---------------------------------------------------------
-        * Lawyer assignment toggle
+        * Membership fields visibility
         * ------------------------------------------------------- */
         const statusSelect = document.getElementById('member_status');
-        const wrapper = document.getElementById('lawyer-assignment-wrapper');
+
+        const memberTypeWrapper = document.getElementById('member-type-wrapper');
+        const memberTypeSelect = document.getElementById('member_type');
+
+        const chamberTypeWrapper = document.getElementById('chamber-type-wrapper');
+        const chamberTypeSelect = document.getElementById('chamber_type');
+
+        const chamberRoomWrapper = document.getElementById('chamber-room-wrapper');
+        const chamberRoomInput = document.getElementById('chamber_room_no');
+
+        const lawyerWrapper = document.getElementById('lawyer-assignment-wrapper');
         const lawyerSelect = document.getElementById('lawyer_id');
 
-        if (statusSelect && wrapper && lawyerSelect) {
-            const lawyerRequiredStatuses = ['lawyer_assistant', 'apprentice'];
+        function toggleMembershipFields() {
+            const status = statusSelect.value;
 
-            const toggleLawyerField = () => {
-                const needsLawyer = lawyerRequiredStatuses.includes(statusSelect.value);
+            const isMember = status === 'member';
 
-                wrapper.style.display = needsLawyer ? '' : 'none';
-                lawyerSelect.disabled = !needsLawyer;
-                lawyerSelect.required = needsLawyer;
+            const needsLawyer = [
+                'lawyer_assistant',
+                'apprentice'
+            ].includes(status);
 
-                if (!needsLawyer) lawyerSelect.value = '';
-            };
+            // Member type
+            memberTypeWrapper.classList.toggle('d-none', !isMember);
+            memberTypeSelect.disabled = !isMember;
+            memberTypeSelect.required = isMember;
 
-            statusSelect.addEventListener('change', toggleLawyerField);
-            toggleLawyerField();
+            if (!isMember) {
+                memberTypeSelect.value = '';
+            }
+
+            // Chamber allocation
+            chamberTypeWrapper.classList.toggle('d-none', !isMember);
+            chamberRoomWrapper.classList.toggle('d-none', !isMember);
+
+            chamberTypeSelect.disabled = !isMember;
+            chamberRoomInput.disabled = !isMember;
+
+            if (!isMember) {
+                chamberTypeSelect.value = '';
+                chamberRoomInput.value = '';
+            }
+
+            // Lawyer assignment
+            lawyerWrapper.classList.toggle('d-none', !needsLawyer);
+            lawyerSelect.disabled = !needsLawyer;
+            lawyerSelect.required = needsLawyer;
+
+            if (!needsLawyer) {
+                lawyerSelect.value = '';
+            }
+        }
+
+        if (statusSelect) {
+            statusSelect.addEventListener('change', toggleMembershipFields);
+            toggleMembershipFields();
         }
 
         // Initialize
