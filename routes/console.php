@@ -9,4 +9,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('membership:generate-yearly-invoices')->yearlyOn(1, 1, '01:00')->withoutOverlapping()->onOneServer();
+Schedule::command('membership:generate-monthly-invoices')->dailyAt('23:00')->when(fn () => now()->isLastOfMonth())->withoutOverlapping();
+
+Schedule::command('membership:generate-yearly-invoices')->dailyAt('23:10')->withoutOverlapping();

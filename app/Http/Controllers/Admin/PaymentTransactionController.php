@@ -102,8 +102,13 @@ public function index(): View
                     'paid_at' => now(),
                 ]);
 
+                // Create individual ledger entries for each invoice item.
+                $this->membershipFeeService->createPaidInvoiceItemLedger(
+                    $invoice,
+                    auth()->id()
+                );
+
                 // Registration payment approves the membership application.
-                // Do not change member_status: it identifies the membership category.
                 if ($invoice->invoice_type === 'registration') {
                     $invoice->user?->update([
                         'approval_status' => 'approved',

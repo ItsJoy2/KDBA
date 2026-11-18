@@ -311,7 +311,7 @@ class UserController extends Controller
             $this->clearUserCaches();
 
             return redirect()
-                ->route('users.show', $user)
+                ->route('users.index', $user)
                 ->with('success', 'User created successfully.');
         } catch (Throwable $exception) {
             foreach ($uploadedFiles as $path) {
@@ -1104,4 +1104,6 @@ class UserController extends Controller
             'invoices' => $invoices,
         ]);
     }
+
+    
 }

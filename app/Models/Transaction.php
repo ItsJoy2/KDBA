@@ -9,6 +9,7 @@ class Transaction extends Model
 {
     protected $fillable = [
         'invoice_id',
+        'invoice_item_id',
         'user_id',
         'category_id',
         'payment_gateway_id',
@@ -56,5 +57,9 @@ class Transaction extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo( TransactionCategory::class, 'category_id');
+    }
+    public function invoiceItem(): BelongsTo
+    {
+        return $this->belongsTo(InvoiceItem::class);
     }
 }

@@ -11,16 +11,30 @@ use Throwable;
 class GenerateYearlyMembershipInvoices extends Command
 {
     protected $signature = 'membership:generate-yearly-invoices
-                            {--year= : The renewal year (defaults to current year)}';
+                            {--year= : Billing year (defaults to current year)}';
 
-    protected $description = 'Generate yearly membership renewal invoices';
+    protected $description = 'Generate yearly membership invoices';
 
     public function handle(MembershipFeeService $feeService): int
     {
-        $year = (int) ($this->option('year') ?: now()->year);
+        $yearOption = $this->option('year');
 
-        if ($year < 2000 || $year > 2100) {
-            $this->error('Invalid renewal year.');
+        $year = $yearOption !== null
+            ? filter_var($yearOption, FILTER_VALIDATE_INT)
+            : (int) now()->year;
+
+        if (
+            $year === false ||
+            $year < 2000 ||
+            $year > 2100
+        ) {
+            $this->error('Invalid billing year.');
+
+            return self::FAILURE;
+        }
+
+        if ($year > now()->year) {
+            $this->error('Future billing years are not allowed.');
 
             return self::FAILURE;
         }
@@ -29,11 +43,18 @@ class GenerateYearlyMembershipInvoices extends Command
         $skipped = 0;
         $failed = 0;
 
-        $this->info("Generating membership renewal invoices for {$year}...");
+        $this->info("Generating yearly membership invoices for {$year}...");
 
         User::query()
-            ->whereIn('member_status', ['member', 'life_member'])
-            ->select(['id', 'member_status'])
+            ->members()
+            ->select([
+                'id',
+                'member_status',
+                'member_type',
+                'bar_join_date',
+                'chamber_type',
+                'chamber_room_no',
+            ])
             ->chunkById(200, function ($users) use (
                 $feeService,
                 $year,
@@ -43,9 +64,17 @@ class GenerateYearlyMembershipInvoices extends Command
             ) {
                 foreach ($users as $user) {
                     try {
-                        $invoice = $feeService->createYearlyInvoice($user, $year);
+                        $invoice = $feeService->createYearlyInvoice(
+                            $user,
+                            $year
+                        );
 
-                        if ($invoice && $invoice->wasRecentlyCreated) {
+                        if (! $invoice) {
+                            $skipped++;
+                            continue;
+                        }
+
+                        if ($invoice->wasRecentlyCreated) {
                             $created++;
                         } else {
                             $skipped++;
@@ -53,13 +82,15 @@ class GenerateYearlyMembershipInvoices extends Command
                     } catch (Throwable $exception) {
                         $failed++;
 
-                        Log::error('Failed to generate yearly membership invoice.', [
+                        Log::error('Yearly membership invoice generation failed.', [
                             'user_id' => $user->id,
                             'year' => $year,
                             'exception' => $exception->getMessage(),
                         ]);
 
-                        $this->warn("Failed for user ID {$user->id}.");
+                        $this->warn(
+                            "Failed for user ID {$user->id}."
+                        );
                     }
                 }
             });

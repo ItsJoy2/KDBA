@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\InvoiceItem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -53,5 +54,9 @@ class Invoice extends Model
             'processing',
             'overdue',
         ]);
+    }
+    public function items(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class);
     }
 }
