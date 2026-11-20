@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 
 @section('title', 'Create Order')
@@ -25,6 +26,7 @@
         <div class="row justify-content-center">
             <div class="col-12 col-xxl-10">
                 <div class="mx-auto" style="max-width: 700px;">
+
                     @include('components.global-feedback')
 
                     <form method="POST" action="{{ route('orders.store') }}" id="orderForm">
@@ -152,8 +154,8 @@
                                                 <th>Product</th>
                                                 <th class="text-end">Price</th>
                                                 <th>Stock</th>
-                                                <th >Quantity</th>
-                                                <th >Serial Numbers</th>
+                                                <th>Quantity</th>
+                                                <th>Serial Numbers</th>
                                                 <th class="text-end">Subtotal</th>
                                                 <th class="text-center">Action</th>
                                             </tr>
@@ -195,6 +197,7 @@
                             </button>
                         </div>
                     </form>
+
                 </div>
             </div>
         </div>
@@ -207,7 +210,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('orderForm');
 
-    // Validation failure er por restore korar data
     const oldItems = @json(old('items', []));
     const itemErrors = @json($itemErrors ?? []);
 
@@ -234,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return element;
     }
 
-    async function fetchSuggestions(url, signal) {
+    async function fetchSuggestions(url, signal = undefined) {
         const response = await fetch(url, {
             headers: {
                 'Accept': 'application/json',
@@ -268,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         delete itemErrors[key];
     }
 
-    // Product search and multiple product selection
+    // Product search and selection
 
     const productSearch = document.getElementById('productSearch');
     const productSuggestions = document.getElementById('productSuggestions');
@@ -286,17 +288,20 @@ document.addEventListener('DOMContentLoaded', function () {
     let productSequence = 0;
 
     function normalizeProduct(product) {
+        const stockType = product.stock_type === 'unlimited'
+            ? 'unlimited'
+            : 'limited';
+
         return {
             id: Number(product.id),
             name: String(product.name || ''),
             selling_price: Number(product.selling_price || 0),
+            stock_type: stockType,
             stock_quantity: Math.max(
                 0,
                 parseInt(product.stock_quantity || 0, 10) || 0
             ),
-            track_serials: [
-                true, 1, '1'
-            ].includes(product.track_serials),
+            track_serials: [true, 1, '1'].includes(product.track_serials),
             serial_start: product.serial_start ?? '',
             serial_end: product.serial_end ?? '',
             current_serial: product.current_serial ?? ''
@@ -345,7 +350,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const product = normalizeProduct(productData);
         const id = String(product.id);
 
-        if (!product.id || product.stock_quantity < 1) {
+        if (!product.id) {
+            alert('Invalid product.');
+            return;
+        }
+
+        if (
+            product.stock_type === 'limited' &&
+            product.stock_quantity < 1
+        ) {
             alert('This product is out of stock.');
             return;
         }
@@ -353,7 +366,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectedProducts.has(id)) {
             const existing = selectedProducts.get(id);
 
-            if (existing.quantity >= existing.stock_quantity) {
+            if (
+                existing.stock_type === 'limited' &&
+                existing.quantity >= existing.stock_quantity
+            ) {
                 alert(
                     `Maximum available quantity for ${existing.name} is ` +
                     `${existing.stock_quantity}.`
@@ -428,6 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
             row.className = 'product-row';
             row.dataset.productId = id;
             row.dataset.price = String(product.selling_price);
+            row.dataset.stockType = product.stock_type;
             row.dataset.stock = String(product.stock_quantity);
             row.dataset.tracksSerials = product.track_serials ? '1' : '0';
 
@@ -439,11 +456,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 createElement(
                     'small',
                     'text-muted d-block',
-                    product.track_serials ? 'Serial-tracked product' : 'No serials required'
+                    product.track_serials
+                        ? 'Serial-tracked product'
+                        : 'No serials required'
                 )
             );
 
-            // Hidden product_id (server validation er jonno)
             const productIdInput = document.createElement('input');
 
             productIdInput.type = 'hidden';
@@ -452,7 +470,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             nameCell.appendChild(productIdInput);
 
-            // Product-level errors (items.{id} / items.{id}.serials)
             [`items.${id}`, `items.${id}.serials`].forEach(function (key) {
                 (itemErrors[key] || []).forEach(function (message) {
                     nameCell.appendChild(
@@ -469,11 +486,35 @@ document.addEventListener('DOMContentLoaded', function () {
             );
 
             // Stock
-            const stockCell = createElement(
-                'td',
-                '',
-                String(product.stock_quantity)
-            );
+            const stockCell = document.createElement('td');
+
+            if (product.stock_type === 'unlimited') {
+                const unlimited = createElement(
+                    'span',
+                    'text-success fw-semibold'
+                );
+
+                const infinityIcon = document.createElement('i');
+                infinityIcon.className = 'bi bi-infinity me-1';
+
+                unlimited.append(
+                    infinityIcon,
+                    document.createTextNode('Unlimited')
+                );
+
+                stockCell.appendChild(unlimited);
+            } else if (product.stock_quantity > 0) {
+                stockCell.textContent =
+                    product.stock_quantity.toLocaleString();
+            } else {
+                stockCell.appendChild(
+                    createElement(
+                        'span',
+                        'text-danger fw-semibold',
+                        'Out of Stock'
+                    )
+                );
+            }
 
             // Quantity
             const quantityCell = document.createElement('td');
@@ -481,21 +522,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
             quantityInput.type = 'number';
             quantityInput.name = `items[${id}][quantity]`;
-            quantityInput.className = 'form-control form-control-sm quantity-input';
+            quantityInput.className =
+                'form-control form-control-sm quantity-input';
             quantityInput.min = '0';
-            quantityInput.max = String(product.stock_quantity);
             quantityInput.step = '1';
             quantityInput.value = String(product.quantity);
             quantityInput.required = true;
 
+            if (product.stock_type === 'unlimited') {
+                quantityInput.removeAttribute('max');
+            } else {
+                quantityInput.max = String(product.stock_quantity);
+            }
+
             quantityInput.addEventListener('change', function () {
-                let quantity = Number.parseInt(quantityInput.value || '0', 10);
+                let quantity = Number.parseInt(
+                    quantityInput.value || '0',
+                    10
+                );
 
                 if (!Number.isInteger(quantity) || quantity < 0) {
                     quantity = 0;
                 }
 
-                if (quantity > product.stock_quantity) {
+                if (
+                    product.stock_type === 'limited' &&
+                    quantity > product.stock_quantity
+                ) {
                     alert(
                         `Maximum available quantity for ${product.name} is ` +
                         `${product.stock_quantity}.`
@@ -529,18 +582,22 @@ document.addEventListener('DOMContentLoaded', function () {
             serialCell.style.minWidth = '150px';
 
             if (product.track_serials) {
-                const serialCount = Math.min(
-                    product.quantity,
-                    product.stock_quantity
-                );
+                const serialCount = product.quantity;
 
                 for (let i = 0; i < serialCount; i++) {
                     serialCell.appendChild(
-                        createSerialInput(id, i, product.serials[i] ?? '')
+                        createSerialInput(
+                            id,
+                            i,
+                            product.serials[i] ?? ''
+                        )
                     );
                 }
 
-                if (product.quantity > product.stock_quantity) {
+                if (
+                    product.stock_type === 'limited' &&
+                    product.quantity > product.stock_quantity
+                ) {
                     serialCell.appendChild(
                         createElement(
                             'div',
@@ -551,7 +608,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } else {
                 serialCell.appendChild(
-                    createElement('span', 'text-muted small', 'Not required')
+                    createElement(
+                        'span',
+                        'text-muted small',
+                        'Not required'
+                    )
                 );
             }
 
@@ -572,6 +633,7 @@ document.addEventListener('DOMContentLoaded', function () {
             );
 
             removeButton.type = 'button';
+            removeButton.setAttribute('aria-label', 'Remove product');
             removeButton.innerHTML = '<i class="bi bi-trash"></i>';
 
             removeButton.addEventListener('click', function () {
@@ -616,15 +678,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const details = document.createElement('div');
 
-            details.append(
-                createElement('div', 'fw-semibold', product.name),
-                createElement(
-                    'small',
-                    'text-muted d-block',
-                    `Stock: ${product.stock_quantity}` +
-                    (product.track_serials ? ' · Serial tracked' : '')
-                )
+            details.appendChild(
+                createElement('div', 'fw-semibold', product.name)
             );
+
+            const stockDetails = document.createElement('small');
+            stockDetails.className = 'text-muted d-block';
+
+            if (product.stock_type === 'unlimited') {
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-infinity me-1';
+
+                stockDetails.append(
+                    icon,
+                    document.createTextNode('Unlimited stock')
+                );
+            } else {
+                stockDetails.textContent =
+                    `Stock: ${product.stock_quantity.toLocaleString()}`;
+            }
+
+            if (product.track_serials) {
+                stockDetails.append(
+                    document.createTextNode(' · Serial tracked')
+                );
+            }
+
+            details.appendChild(stockDetails);
 
             const price = createElement(
                 'span',
@@ -688,7 +768,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderProductSuggestions(products);
                 } catch (error) {
                     if (error.name !== 'AbortError') {
-                        showProductMessage('Unable to search products. Please try again.');
+                        showProductMessage(
+                            'Unable to search products. Please try again.'
+                        );
                     }
                 }
             }, 250);
@@ -839,7 +921,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             'list-group-item list-group-item-action';
 
                         button.append(
-                            createElement('div', 'fw-semibold', member.full_name),
+                            createElement(
+                                'div',
+                                'fw-semibold',
+                                member.full_name
+                            ),
                             createElement(
                                 'small',
                                 'text-muted d-block',
@@ -878,7 +964,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Validation fail er por selected member restore
+        // Restore selected member after validation failure.
         const preselectedMember = @json($selectedMember ?? null);
 
         if (preselectedMember) {
@@ -895,7 +981,10 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedProducts.forEach(function (product) {
             const quantity = product.quantity;
 
-            if (quantity > product.stock_quantity) {
+            if (
+                product.stock_type === 'limited' &&
+                quantity > product.stock_quantity
+            ) {
                 errors.push(
                     `${product.name}: quantity exceeds available stock.`
                 );
@@ -919,7 +1008,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     );
                 }
 
-                if (new Set(serials.filter(Boolean)).size !== serials.filter(Boolean).length) {
+                const nonEmptySerials = serials.filter(Boolean);
+
+                if (
+                    new Set(nonEmptySerials).size !== nonEmptySerials.length
+                ) {
                     errors.push(
                         `${product.name}: duplicate serial numbers are not allowed.`
                     );
@@ -932,7 +1025,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!hasPositiveQuantity) {
-            errors.push('At least one product quantity must be greater than zero.');
+            errors.push(
+                'At least one product quantity must be greater than zero.'
+            );
         }
 
         if (errors.length) {
@@ -941,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Old selected products restore (validation fail er por)
+    // Restore old selected products after validation failure
 
     async function restoreOldItems() {
         const ids = Object.keys(oldItems || {});
@@ -951,15 +1046,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const url = new URL(@json(route('orders.search')), window.location.origin);
+            const url = new URL(
+                @json(route('orders.search')),
+                window.location.origin
+            );
 
             url.searchParams.set('type', 'product');
-            ids.forEach(id => url.searchParams.append('ids[]', id));
+
+            ids.forEach(function (id) {
+                url.searchParams.append('ids[]', id);
+            });
 
             const products = await fetchSuggestions(url);
 
             ids.forEach(function (id) {
-                const data = products.find(p => String(p.id) === String(id));
+                const data = products.find(
+                    product => String(product.id) === String(id)
+                );
 
                 if (!data) {
                     return;
@@ -974,21 +1077,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     quantity = 0;
                 }
 
-                quantity = Math.min(quantity, product.stock_quantity);
+                if (product.stock_type === 'limited') {
+                    quantity = Math.min(
+                        quantity,
+                        product.stock_quantity
+                    );
+                }
 
                 selectedProducts.set(String(product.id), {
                     ...product,
                     quantity,
                     serials: Array.from(
                         { length: quantity },
-                        (_, i) => old.serials?.[i] ?? ''
+                        (_, index) => old.serials?.[index] ?? ''
                     )
                 });
             });
 
             renderSelectedProducts();
         } catch (error) {
-            console.error('Unable to restore selected products.', error);
+            console.error(
+                'Unable to restore selected products.',
+                error
+            );
         }
     }
 

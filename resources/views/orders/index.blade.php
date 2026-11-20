@@ -138,9 +138,6 @@
                                                     <div class="fw-medium">
                                                         {{ $order->order_number }}
                                                     </div>
-                                                    <small class="text-body-secondary">
-                                                        #{{ $order->id }}
-                                                    </small>
                                                 </td>
 
                                                 @if ($canViewAll)

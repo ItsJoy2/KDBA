@@ -47,13 +47,6 @@ class UpdateProductRequest extends FormRequest
                 'max:5000',
             ],
 
-            'buy_price' => [
-                'required',
-                'numeric',
-                'min:0',
-                'decimal:0,2',
-            ],
-
             'selling_price' => [
                 'required',
                 'numeric',
@@ -61,11 +54,19 @@ class UpdateProductRequest extends FormRequest
                 'decimal:0,2',
             ],
 
-            'stock_quantity' => [
+
+            'stock_type' => [
                 'required',
+                Rule::in(['limited', 'unlimited']),
+            ],
+
+            'stock_quantity' => [
+                'required_if:stock_type,limited',
+                'nullable',
                 'integer',
                 'min:0',
             ],
+
 
             'track_serials' => [
                 'sometimes',

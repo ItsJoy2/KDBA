@@ -58,11 +58,24 @@
                             </div>
 
                             {{-- Stock --}}
-                            <div class="text-center mb-3">
-                                <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                    Available Stock:
-                                    {{ number_format((int) $product->stock_quantity) }}
-                                </span>
+                            <div class="mb-3">
+                                <small class="text-muted">Available Stock:</small>
+
+                                @if ($product->stock_type === 'unlimited')
+                                    <span class="fw-bold text-success"
+                                          title="Unlimited Stock">
+                                        <i class="bi bi-infinity"></i>
+                                        Unlimited
+                                    </span>
+                                @elseif ($product->stock_quantity > 0)
+                                    <span class="fw-bold text-success">
+                                        {{ number_format($product->stock_quantity) }}
+                                    </span>
+                                @else
+                                    <span class="fw-bold text-danger">
+                                        Out of Stock
+                                    </span>
+                                @endif
                             </div>
 
                             {{-- Actions --}}
@@ -78,6 +91,7 @@
                                         data-product-name="{{ $product->name }}"
                                         data-product-price="{{ $product->selling_price }}"
                                         data-product-stock="{{ $product->stock_quantity }}"
+                                        data-product-stock-type="{{ $product->stock_type }}"
                                         data-product-track-serials="{{ (int) ($product->track_serials ?? false) }}"
                                         data-product-current-serial="{{ $product->current_serial ?? '' }}"
                                         data-product-serial-end="{{ $product->serial_end ?? '' }}"
@@ -127,7 +141,6 @@
 
 @endsection
 
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -149,6 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let unitPrice = 0;
     let stockQuantity = 0;
+    let stockType = 'limited';
     let tracksSerials = false;
     let selectedProductId = null;
 
@@ -160,9 +174,10 @@ document.addEventListener('DOMContentLoaded', function () {
             maximumFractionDigits: 2
         });
 
-        confirmButton.disabled =
-            quantity < 1 ||
-            quantity > stockQuantity;
+        const exceedsStock =
+            stockType === 'limited' && quantity > stockQuantity;
+
+        confirmButton.disabled = quantity < 1 || exceedsStock;
 
         renderSerialInputs();
     }
@@ -192,10 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
             input.type = 'text';
             input.className = 'form-control';
             input.id = `order_serial_${i}`;
-
-            // Match the nested items structure used by the Create Order form.
             input.name = `items[${selectedProductId}][serials][${i}]`;
-
             input.placeholder = `Enter serial number ${i + 1}`;
             input.autocomplete = 'off';
             input.required = true;
@@ -221,25 +233,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const productName = button.dataset.productName || '';
         const price = parseFloat(button.dataset.productPrice) || 0;
-        const stock = parseInt(button.dataset.productStock, 10) || 0;
 
-        tracksSerials =
-            button.dataset.productTrackSerials === '1';
+        stockType = button.dataset.productStockType || 'limited';
+        stockQuantity = parseInt(button.dataset.productStock, 10) || 0;
 
-        productIdInput.value = selectedProductId;
+        tracksSerials = button.dataset.productTrackSerials === '1';
+
         productNameInput.value = productName;
         productPriceInput.value = price.toFixed(2);
 
         unitPrice = price;
-        stockQuantity = stock;
 
-        availableStock.textContent = stock.toLocaleString('en-US');
+        if (stockType === 'unlimited') {
+            availableStock.innerHTML =
+                '<span class="text-success fw-bold"><i class="bi bi-infinity"></i> Unlimited</span>';
+
+            quantityInput.removeAttribute('max');
+        } else {
+            availableStock.textContent = stockQuantity.toLocaleString('en-US');
+            quantityInput.max = stockQuantity;
+        }
 
         quantityInput.min = 1;
-        quantityInput.max = stock;
         quantityInput.value = 1;
 
-        // Never auto-fill serials from current_serial.
         calculateTotal();
     });
 
@@ -251,7 +268,11 @@ document.addEventListener('DOMContentLoaded', function () {
         serialWrapper.classList.add('d-none');
 
         tracksSerials = false;
+        stockType = 'limited';
+        stockQuantity = 0;
         selectedProductId = null;
+
+        quantityInput.removeAttribute('max');
     });
 });
 </script>

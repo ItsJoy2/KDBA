@@ -15,7 +15,13 @@ class ProductShowcaseController extends Controller
 
         $products = Product::query()
             ->where('status', 'active')
-            ->where('stock_quantity', '>', 0)
+            ->where(function ($query) {
+                $query->where('stock_type', 'unlimited')
+                    ->orWhere(function ($q) {
+                        $q->where('stock_type', 'limited')
+                            ->where('stock_quantity', '>', 0);
+                    });
+            })
             ->latest()
             ->paginate(12)
             ->withQueryString();

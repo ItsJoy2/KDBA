@@ -16,6 +16,7 @@ class Product extends Model
         'description',
         'buy_price',
         'selling_price',
+        'stock_type',
         'stock_quantity',
         'track_serials',
         'serial_start',

@@ -108,7 +108,17 @@ class OrderService
                     ]);
                 }
 
-                if ($quantity < 1 || $product->stock_quantity < $quantity) {
+                if ($quantity < 1) {
+                    throw ValidationException::withMessages([
+                        'items' => "Invalid quantity for {$product->name}.",
+                    ]);
+                }
+
+                // Check stock only for limited products.
+                if (
+                    $product->stock_type === 'limited' &&
+                    $product->stock_quantity < $quantity
+                ) {
                     throw ValidationException::withMessages([
                         'items' => "Insufficient stock for {$product->name}.",
                     ]);
@@ -259,8 +269,11 @@ class OrderService
                     }
                 }
 
-                $product->stock_quantity -= $quantity;
-                $product->save();
+                // Deduct stock only for limited products.
+                if ($product->stock_type === 'limited') {
+                    $product->stock_quantity -= $quantity;
+                    $product->save();
+                }
             }
 
             return $order->load(['user', 'purchaser', 'items.product', 'serials.product']);

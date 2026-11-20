@@ -76,7 +76,7 @@ class OrderController extends Controller
             ->withQueryString();
 
         // Active payment gateways for Order Payment Modal
-        $paymentGateways = \App\Models\PaymentGateway::query()
+        $paymentGateways = PaymentGateway::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->get([
@@ -101,7 +101,13 @@ class OrderController extends Controller
         );
 
         $products = Product::active()
-            ->where('stock_quantity', '>', 0)
+            ->where(function ($query) {
+                $query->where('stock_type', 'unlimited')
+                    ->orWhere(function ($q) {
+                        $q->where('stock_type', 'limited')
+                            ->where('stock_quantity', '>', 0);
+                    });
+            })
             ->orderBy('name')
             ->get();
 
@@ -114,24 +120,32 @@ class OrderController extends Controller
                 ->get(['id', 'full_name', 'mobile'])
             : collect();
 
-        $itemErrors = collect(session('errors')?->getBag('default')->getMessages() ?? [])
-        ->filter(fn ($messages, $key) => str_starts_with($key, 'items'))
-        ->all();
+        $itemErrors = collect(
+            session('errors')?->getBag('default')->getMessages() ?? []
+        )
+            ->filter(fn ($messages, $key) => str_starts_with($key, 'items'))
+            ->all();
 
-    // Validation fail er por selected member restore korar jonno
-    $selectedMember = old('user_id')
-        ? User::find(old('user_id'), [
-            'id', 'full_name', 'mobile', 'email', 'membership_number',
-        ])
-        : null;
+        $selectedMember = old('user_id')
+            ? User::find(old('user_id'), [
+                'id',
+                'full_name',
+                'mobile',
+                'email',
+                'membership_number',
+            ])
+            : null;
 
-        return view('orders.create', compact('products','users','canOrderForOthers','itemErrors', 'selectedMember'));
+        return view('orders.create', compact(
+            'products',
+            'users',
+            'canOrderForOthers',
+            'itemErrors',
+            'selectedMember'
+        ));
     }
 
-    public function store(
-        StoreOrderRequest $request,
-        OrderService $orderService
-    ): RedirectResponse {
+    public function store(StoreOrderRequest $request,OrderService $orderService): RedirectResponse {
         $data = $request->validated();
 
         $order = $orderService->create(
@@ -194,8 +208,10 @@ class OrderController extends Controller
         );
     }
 
-    public function searchSuggestions(Request $request): JsonResponse{
+    public function searchSuggestions(Request $request): JsonResponse
+    {
         $user = $request->user();
+
         $type = $request->query('type', 'member');
         $search = trim((string) $request->query('q', ''));
 
@@ -231,26 +247,45 @@ class OrderController extends Controller
         }
 
         if ($type === 'product') {
-            abort_unless($user->hasPermission('products.buy'), 403);
+            abort_unless(
+                $user->hasPermission('products.buy'),
+                403
+            );
 
-            // Restore previously selected products after validation failure.
+            $availableProducts = function ($query) {
+                $query->where('status', 'active')
+                    ->where(function ($stockQuery) {
+                        $stockQuery->where('stock_type', 'unlimited')
+                            ->orWhere(function ($limitedQuery) {
+                                $limitedQuery->where('stock_type', 'limited')
+                                    ->where('stock_quantity', '>', 0);
+                            });
+                    });
+            };
+
+            // Restore previously selected products.
             $ids = $request->query('ids', []);
 
             if (is_array($ids) && count($ids) > 0) {
                 $ids = collect($ids)
-                    ->filter(fn ($id) => filter_var($id, FILTER_VALIDATE_INT) !== false)
+                    ->filter(fn ($id) => filter_var(
+                        $id,
+                        FILTER_VALIDATE_INT
+                    ) !== false)
                     ->unique()
                     ->values()
                     ->all();
 
                 return response()->json(
                     Product::query()
-                        ->where('status', 'active')
                         ->whereIn('id', $ids)
+                        ->where($availableProducts)
+                        ->orderBy('name')
                         ->get([
                             'id',
                             'name',
                             'selling_price',
+                            'stock_type',
                             'stock_quantity',
                             'track_serials',
                             'serial_start',
@@ -266,8 +301,7 @@ class OrderController extends Controller
 
             return response()->json(
                 Product::query()
-                    ->where('status', 'active')
-                    ->where('stock_quantity', '>', 0)
+                    ->where($availableProducts)
                     ->where('name', 'like', "%{$search}%")
                     ->orderBy('name')
                     ->limit(10)
@@ -275,6 +309,7 @@ class OrderController extends Controller
                         'id',
                         'name',
                         'selling_price',
+                        'stock_type',
                         'stock_quantity',
                         'track_serials',
                         'serial_start',

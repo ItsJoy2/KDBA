@@ -16,24 +16,86 @@ class StoreProductRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (blank($this->input('slug')) && filled($this->input('name'))) {
-            $this->merge(['slug' => Str::slug($this->input('name'))]);
+            $this->merge([
+                'slug' => Str::slug($this->input('name')),
+            ]);
         }
     }
 
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:150'],
-            'slug' => ['required', 'string', 'max:180', 'alpha_dash', 'unique:products,slug'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'buy_price' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
-            'selling_price' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
-            'stock_quantity' => ['required', 'integer', 'min:0'],
-            'track_serials' => ['sometimes', 'boolean'],
-            'serial_start' => ['nullable', 'integer', 'min:0'],
-            'serial_end' => ['nullable', 'integer', 'gte:serial_start'],
-            'current_serial' => ['nullable', 'integer', 'gte:serial_start', 'lte:serial_end'],
-            'status' => ['required', Rule::in(['active', 'inactive'])],
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+
+            'slug' => [
+                'required',
+                'string',
+                'max:180',
+                'alpha_dash',
+                'unique:products,slug',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+                'max:5000',
+            ],
+
+            'selling_price' => [
+                'required',
+                'numeric',
+                'min:0',
+                'decimal:0,2',
+            ],
+
+            
+            'stock_type' => [
+                'required',
+                Rule::in(['limited', 'unlimited']),
+            ],
+
+            'stock_quantity' => [
+                'required_if:stock_type,limited',
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+
+
+            'track_serials' => [
+                'sometimes',
+                'boolean',
+            ],
+
+            'serial_start' => [
+                'nullable',
+                'integer',
+                'min:0',
+                'required_if:track_serials,1',
+            ],
+
+            'serial_end' => [
+                'nullable',
+                'integer',
+                'gte:serial_start',
+                'required_if:track_serials,1',
+            ],
+
+            'current_serial' => [
+                'nullable',
+                'integer',
+                'gte:serial_start',
+                'lte:serial_end',
+            ],
+
+            'status' => [
+                'required',
+                Rule::in(['active', 'inactive']),
+            ],
         ];
     }
 }

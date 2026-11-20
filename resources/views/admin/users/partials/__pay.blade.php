@@ -6,7 +6,7 @@
          aria-labelledby="adminPaymentModalLabel"
          aria-hidden="true">
 
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
 
                 <form

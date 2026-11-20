@@ -116,7 +116,7 @@
                                     <thead>
                                         <tr>
                                             <th class="ps-3">Product</th>
-                                            <th>Selling Price</th>
+                                            {{-- <th>Selling Price</th> --}}
                                             <th>Stock</th>
                                             <th>Serial Tracking</th>
                                             <th>Status</th>
@@ -137,12 +137,24 @@
                                                     </small>
                                                 </td>
 
-                                                <td>
+                                                {{-- <td>
                                                     {{ number_format((float) $product->selling_price, 2) }}
-                                                </td>
+                                                </td> --}}
 
                                                 <td>
-                                                    {{ number_format((int) $product->stock_quantity) }}
+                                                    @if ($product->stock_type === 'unlimited')
+                                                        <span class="text-success fw-bold" title="Unlimited Stock">
+                                                            <i class="bi bi-infinity"></i> Unlimited
+                                                        </span>
+                                                    @elseif ($product->stock_quantity > 0)
+                                                        <span class="text-primary fw-semibold">
+                                                            {{ number_format($product->stock_quantity) }}
+                                                        </span>
+                                                    @else
+                                                        <span class="text-danger fw-semibold">
+                                                            <i class="bi bi-x-circle me-1"></i> Out of Stock
+                                                        </span>
+                                                    @endif
                                                 </td>
 
                                                 <td>
@@ -213,7 +225,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="text-center py-5">
+                                                <td colspan="5" class="text-center py-5">
                                                     <i class="bi bi-box-seam fs-2 d-block mb-2 text-body-secondary"></i>
 
                                                     <div class="fw-medium">

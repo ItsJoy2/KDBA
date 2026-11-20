@@ -9,15 +9,13 @@ use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-
     public function index(Request $request): View
     {
         abort_unless(
-            auth()->user()->hasPermission('products.view'),
+            $request->user()->hasPermission('products.view'),
             403
         );
 
@@ -33,6 +31,9 @@ class ProductController extends Controller
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->input('status'));
             })
+            ->when($request->filled('stock_type'), function ($query) use ($request) {
+                $query->where('stock_type', $request->input('stock_type'));
+            })
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
@@ -42,7 +43,10 @@ class ProductController extends Controller
 
     public function create(Request $request): View
     {
-        abort_unless($request->user()->hasPermission('products.create'), 403);
+        abort_unless(
+            $request->user()->hasPermission('products.create'),
+            403
+        );
 
         return view('products.create');
     }
@@ -50,8 +54,25 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request): RedirectResponse
     {
         $data = $request->validated();
+
         $data['created_by'] = $request->user()->id;
         $data['updated_by'] = $request->user()->id;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Stock Management
+        |--------------------------------------------------------------------------
+        */
+
+        if ($data['stock_type'] === 'unlimited') {
+            $data['stock_quantity'] = 0;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Serial Management
+        |--------------------------------------------------------------------------
+        */
 
         if (! ($data['track_serials'] ?? false)) {
             $data['serial_start'] = null;
@@ -63,13 +84,17 @@ class ProductController extends Controller
 
         Product::create($data);
 
-        return redirect()->route('products.index')
+        return redirect()
+            ->route('products.index')
             ->with('success', 'Product created successfully.');
     }
 
     public function edit(Request $request, Product $product): View
     {
-        abort_unless($request->user()->hasPermission('products.edit'), 403);
+        abort_unless(
+            $request->user()->hasPermission('products.edit'),
+            403
+        );
 
         return view('products.edit', compact('product'));
     }
@@ -79,6 +104,22 @@ class ProductController extends Controller
         Product $product
     ): RedirectResponse {
         $data = $request->validated();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Stock Management
+        |--------------------------------------------------------------------------
+        */
+
+        if ($data['stock_type'] === 'unlimited') {
+            $data['stock_quantity'] = 0;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Serial Management
+        |--------------------------------------------------------------------------
+        */
 
         if (! ($data['track_serials'] ?? false)) {
             if ($product->orderSerials()->exists()) {
@@ -91,28 +132,44 @@ class ProductController extends Controller
             $data['serial_start'] = null;
             $data['serial_end'] = null;
             $data['current_serial'] = null;
+        } else {
+            $data['current_serial'] ??= $product->current_serial
+                ?? $data['serial_start']
+                ?? null;
         }
 
         $data['updated_by'] = $request->user()->id;
 
         $product->update($data);
 
-        return redirect()->route('products.index')
+        return redirect()
+            ->route('products.index')
             ->with('success', 'Product updated successfully.');
     }
 
     public function show(Request $request, Product $product): View
     {
-        abort_unless($request->user()->hasPermission('products.view'), 403);
+        abort_unless(
+            $request->user()->hasPermission('products.view'),
+            403
+        );
 
         return view('products.show', compact('product'));
     }
 
-    public function destroy(Request $request, Product $product): RedirectResponse
-    {
-        abort_unless($request->user()->hasPermission('products.delete'), 403);
+    public function destroy(
+        Request $request,
+        Product $product
+    ): RedirectResponse {
+        abort_unless(
+            $request->user()->hasPermission('products.delete'),
+            403
+        );
 
-        if ($product->orderItems()->exists() || $product->orderSerials()->exists()) {
+        if (
+            $product->orderItems()->exists()
+            || $product->orderSerials()->exists()
+        ) {
             return back()->with(
                 'error',
                 'This product has order history. Deactivate it instead.'
@@ -121,7 +178,8 @@ class ProductController extends Controller
 
         $product->delete();
 
-        return redirect()->route('products.index')
+        return redirect()
+            ->route('products.index')
             ->with('success', 'Product deleted successfully.');
     }
 }

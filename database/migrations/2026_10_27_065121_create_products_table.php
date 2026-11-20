@@ -24,6 +24,7 @@ return new class extends Migration
             $table->decimal('selling_price', 12, 2)->default(0);
 
             // Stock management
+             $table->enum('stock_type', ['limited', 'unlimited'])->default('limited');
             $table->unsignedInteger('stock_quantity')->default(0);
 
             // Serial number tracking
