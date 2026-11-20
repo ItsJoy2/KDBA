@@ -304,7 +304,7 @@ class DefaultPermissionsSeeder extends Seeder
 
             if (! $member) {
                 throw new RuntimeException(
-                    'Member role not found. Run RoleSeeder first.'
+                    'Member role not found. Run DefaultRolesSeeder first.'
                 );
             }
 
@@ -313,6 +313,8 @@ class DefaultPermissionsSeeder extends Seeder
              */
             $memberPermissionSlugs = [
                 'products.buy',
+                'orders.view', 
+                'orders.view_own'
             ];
 
             $memberPermissionIds = DB::table('permissions')
