@@ -210,13 +210,52 @@
                                                 </td>
 
                                                 <td class="text-end pe-3">
-                                                    <a href="{{ route('orders.show', $order) }}"
-                                                       class="btn btn-sm btn-outline-primary"
-                                                       title="View order"
-                                                       aria-label="View order {{ $order->order_number }}">
-                                                        <i class="bi bi-eye" aria-hidden="true"></i>
-                                                        {{-- <span class="d-none d-lg-inline">View</span> --}}
-                                                    </a>
+                                                    <div class="d-inline-flex gap-1">
+
+                                                        <a href="{{ route('orders.show', $order) }}"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="View order">
+                                                            <i class="bi bi-eye"></i>
+                                                        </a>
+
+                                                       @if ($order->payment_status !== 'paid')
+                                                        @if ((int) $order->user_id === (int) auth()->id())
+                                                            {{-- Member Payment --}}
+                                                            <button
+                                                                type="button"
+                                                                class="btn btn-sm btn-success"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#orderPaymentModal"
+                                                                data-order-id="{{ $order->id }}"
+                                                                data-order-number="{{ $order->order_number }}"
+                                                                data-order-amount="{{ number_format((float) $order->total_amount, 2, '.', '') }}"
+                                                                data-payment-type="member"
+                                                            >
+                                                                <i class="bi bi-credit-card me-1"></i>
+                                                                Pay Now
+                                                            </button>
+                                                        @elseif (
+                                                            auth()->user()->hasPermission('transactions.create') &&
+                                                            auth()->user()->hasPermission('transactions.verify')
+                                                        )
+                                                            {{-- Admin Payment --}}
+                                                            <button
+                                                                type="button"
+                                                                class="btn btn-sm btn-primary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#orderPaymentModal"
+                                                                data-order-id="{{ $order->id }}"
+                                                                data-order-number="{{ $order->order_number }}"
+                                                                data-order-amount="{{ number_format((float) $order->total_amount, 2, '.', '') }}"
+                                                                data-payment-type="admin"
+                                                            >
+                                                                <i class="bi bi-cash-stack me-1"></i>
+                                                                Receive Payment
+                                                            </button>
+                                                        @endif
+                                                    @endif
+
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @empty
@@ -262,4 +301,6 @@
             </div>
         </div>
     </div>
+
+    @include('orders.partials.__pay-modal')
 @endsection

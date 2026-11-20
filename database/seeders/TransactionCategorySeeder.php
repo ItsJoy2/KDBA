@@ -9,6 +9,13 @@ class TransactionCategorySeeder extends Seeder
 {
     public function run(): void
     {
+        $systemCategories = [
+            'invoice',
+            'membership-fees',
+            'monthly-fees',
+            'yearly-fees',
+        ];
+
         $categories = [
             // Income Categories
             [
@@ -18,10 +25,22 @@ class TransactionCategorySeeder extends Seeder
                 'description' => 'Initial membership registration fees.',
             ],
             [
-                'name' => 'Yearly Renewal Fees',
-                'slug' => 'yearly-renewal-fees',
+                'name' => 'Monthly Fees',
+                'slug' => 'monthly-fees',
                 'type' => 'income',
-                'description' => 'Annual membership renewal fees.',
+                'description' => 'Monthly membership fees.',
+            ],
+            [
+                'name' => 'Yearly Fees',
+                'slug' => 'yearly-fees',
+                'type' => 'income',
+                'description' => 'Annual membership fees.',
+            ],
+            [
+                'name' => 'Invoice',
+                'slug' => 'invoice',
+                'type' => 'income',
+                'description' => 'Income received from invoice payments.',
             ],
             [
                 'name' => 'Product Sales',
@@ -34,6 +53,12 @@ class TransactionCategorySeeder extends Seeder
                 'slug' => 'hall-rent',
                 'type' => 'income',
                 'description' => 'Income generated from hall rental.',
+            ],
+            [
+                'name' => 'Shop Rent',
+                'slug' => 'shop-rent',
+                'type' => 'income',
+                'description' => 'Income received from shop rent.',
             ],
             [
                 'name' => 'Other Income',
@@ -93,14 +118,21 @@ class TransactionCategorySeeder extends Seeder
             ],
         ];
 
-        DB::transaction(function () use ($categories) {
+        DB::transaction(function () use ($categories, $systemCategories) {
             foreach ($categories as $category) {
+                $isSystem = in_array(
+                    $category['slug'],
+                    $systemCategories,
+                    true
+                );
+
                 DB::table('transaction_categories')->updateOrInsert(
                     ['slug' => $category['slug']],
                     [
                         'name' => $category['name'],
                         'type' => $category['type'],
                         'description' => $category['description'],
+                        'is_system' => $isSystem,
                         'is_active' => true,
                         'updated_at' => now(),
                         'created_at' => now(),

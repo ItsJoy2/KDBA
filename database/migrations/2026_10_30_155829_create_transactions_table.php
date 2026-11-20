@@ -12,7 +12,8 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
-            $table->foreignId('invoice_item_id')->nullable()->unique('transactions_invoice_item_unique')->constrained('invoice_items')->restrictOnDelete();
+            $table->foreignId('order_id')->nullable()->constrained('orders')->nullOnDelete();
+            $table->foreignId('invoice_item_id')->nullable()->index('transactions_invoice_item_id_index')->constrained('invoice_items')->restrictOnDelete();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->foreignId('category_id')->nullable()->constrained('transaction_categories')->nullOnDelete();
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
@@ -30,6 +31,7 @@ return new class extends Migration
             $table->timestamps();
             $table->index(['user_id', 'status']);
             $table->index(['invoice_id', 'status']);
+            $table->index(['order_id', 'status']);
             $table->index(['verified_by', 'verified_at']);
         });
     }

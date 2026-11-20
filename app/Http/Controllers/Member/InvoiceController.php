@@ -7,11 +7,11 @@ use App\Http\Requests\SubmitPaymentRequest;
 use App\Models\Invoice;
 use App\Models\PaymentGateway;
 use App\Models\Transaction;
-use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -45,12 +45,15 @@ class InvoiceController extends Controller
     ): RedirectResponse {
         $validated = $request->validated();
 
-        // Store the receipt on the private local disk.
-        $receiptPath = $request->hasFile('receipt')
-            ? $request->file('receipt')->store('payment-receipts', 'local')
-            : null;
+        $receiptPath = null;
 
         try {
+            // Store receipt on private local disk.
+            if ($request->hasFile('receipt')) {
+                $receiptPath = $request->file('receipt')
+                    ->store('payment-receipts', 'local');
+            }
+
             DB::transaction(function () use (
                 $validated,
                 $invoice,
@@ -61,19 +64,26 @@ class InvoiceController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                // Always verify ownership on the locked database record.
+                // Verify invoice ownership.
                 if ((int) $lockedInvoice->user_id !== (int) auth()->id()) {
                     abort(403);
                 }
 
-                if (! in_array($lockedInvoice->status, ['pending', 'overdue'], true)) {
+                // Only pending or overdue invoices can be paid.
+                if (! in_array(
+                    $lockedInvoice->status,
+                    ['pending', 'overdue'],
+                    true
+                )) {
                     throw ValidationException::withMessages([
                         'invoice' => 'This invoice is not available for payment.',
                     ]);
                 }
 
+                // Prevent duplicate main invoice payments.
                 $existingPayment = Transaction::query()
                     ->where('invoice_id', $lockedInvoice->id)
+                    ->whereNull('invoice_item_id')
                     ->whereIn('status', ['pending', 'approved'])
                     ->exists();
 
@@ -83,6 +93,7 @@ class InvoiceController extends Controller
                     ]);
                 }
 
+                // Validate active payment gateway.
                 $gateway = PaymentGateway::query()
                     ->whereKey($validated['payment_gateway_id'])
                     ->where('is_active', true)
@@ -94,12 +105,25 @@ class InvoiceController extends Controller
                     ]);
                 }
 
+                // Cash gateway handling.
+                $isCash = $gateway->type === 'cash';
+
+                $trxId = $isCash
+                    ? 'CASH-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(8))
+                    : $validated['trx_id'];
+
+                $senderMobile = $isCash
+                    ? 'N/A'
+                    : $validated['sender_mobile'];
+
+                // Create exactly one main invoice transaction.
                 Transaction::create([
                     'invoice_id' => $lockedInvoice->id,
-                    'user_id' => auth()->id(),
+                    'invoice_item_id' => null,
+                    'user_id' => $lockedInvoice->user_id,
                     'payment_gateway_id' => $gateway->id,
-                    'trx_id' => $validated['trx_id'],
-                    'sender_mobile' => $validated['sender_mobile'],
+                    'trx_id' => $trxId,
+                    'sender_mobile' => $senderMobile,
                     'amount' => $lockedInvoice->amount,
                     'status' => 'pending',
                     'source' => 'member',
@@ -108,6 +132,7 @@ class InvoiceController extends Controller
                     'submitted_at' => now(),
                 ]);
 
+                // Mark invoice as processing until admin verification.
                 $lockedInvoice->update([
                     'status' => 'processing',
                 ]);
@@ -118,7 +143,7 @@ class InvoiceController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'trx_id' => 'This transaction ID has already been used.',
+                'trx_id' => 'This transaction ID has already been used. Please try again.',
             ]);
         } catch (Throwable $exception) {
             if ($receiptPath) {
@@ -130,6 +155,9 @@ class InvoiceController extends Controller
 
         return redirect()
             ->route('member.invoices.index')
-            ->with('success', 'Payment submitted successfully. Awaiting admin verification.');
+            ->with(
+                'success',
+                'Payment submitted successfully. Awaiting admin verification.'
+            );
     }
 }

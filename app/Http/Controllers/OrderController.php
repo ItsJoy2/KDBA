@@ -12,9 +12,21 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use App\Http\Requests\SubmitOrderPaymentRequest;
+use App\Models\PaymentGateway;
+use App\Models\Transaction;
+use App\Models\TransactionCategory;
+use App\Services\Finance\FinancialTransactionService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
+use Throwable;
 
 class OrderController extends Controller
 {
+
     public function index(Request $request): View
     {
         abort_unless(
@@ -23,6 +35,7 @@ class OrderController extends Controller
         );
 
         $user = $request->user();
+
         $canViewAll = $user->hasPermission('orders.view_all');
 
         $orders = Order::query()
@@ -32,25 +45,25 @@ class OrderController extends Controller
             ])
             ->when(
                 ! $canViewAll,
-                fn ($q) => $q->where('user_id', $user->id)
+                fn ($query) => $query->where('user_id', $user->id)
             )
             ->when(
                 $request->filled('status'),
-                fn ($q) => $q->where(
+                fn ($query) => $query->where(
                     'order_status',
                     $request->input('status')
                 )
             )
-            ->when($request->filled('search'), function ($q) use ($request) {
+            ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
 
-                $q->where(function ($sub) use ($search) {
-                    $sub->where(
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where(
                         'order_number',
                         'like',
                         "%{$search}%"
-                    )->orWhereHas('user', function ($u) use ($search) {
-                        $u->where(
+                    )->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where(
                             'full_name',
                             'like',
                             "%{$search}%"
@@ -62,9 +75,21 @@ class OrderController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Active payment gateways for Order Payment Modal
+        $paymentGateways = \App\Models\PaymentGateway::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'account_number',
+                'type',
+            ]);
+
         return view('orders.index', compact(
             'orders',
-            'canViewAll'
+            'canViewAll',
+            'paymentGateways'
         ));
     }
 
@@ -264,4 +289,127 @@ class OrderController extends Controller
         ], 422);
     }
         
+
+    public function submitPayment(
+        SubmitOrderPaymentRequest $request,
+        Order $order
+    ): RedirectResponse {
+        $validated = $request->validated();
+
+        $receiptPath = null;
+
+        try {
+            if ($request->hasFile('receipt')) {
+                $receiptPath = $request->file('receipt')
+                    ->store('transactions/receipts', 'public');
+            }
+
+            DB::transaction(function () use (
+                $validated,
+                $order,
+                $request,
+                &$receiptPath
+            ): void {
+                $lockedOrder = Order::query()
+                    ->whereKey($order->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ((int) $lockedOrder->user_id !== (int) auth()->id()) {
+                    abort(403);
+                }
+
+                if ($lockedOrder->payment_status === 'paid') {
+                    throw ValidationException::withMessages([
+                        'order' => 'This order has already been paid.',
+                    ]);
+                }
+
+                if ($lockedOrder->order_status === 'cancelled') {
+                    throw ValidationException::withMessages([
+                        'order' => 'Payment is not allowed for a cancelled order.',
+                    ]);
+                }
+
+                $existingPayment = Transaction::query()
+                    ->where('order_id', $lockedOrder->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->exists();
+
+                if ($existingPayment) {
+                    throw ValidationException::withMessages([
+                        'payment_gateway_id' => 'A payment is already submitted for this order.',
+                    ]);
+                }
+
+                $gateway = PaymentGateway::query()
+                    ->whereKey($validated['payment_gateway_id'])
+                    ->where('is_active', true)
+                    ->firstOrFail();
+
+                $category = TransactionCategory::query()
+                    ->where('slug', 'product-sales')
+                    ->where('type', 'income')
+                    ->where('is_active', true)
+                    ->first();
+
+                if (! $category) {
+                    throw ValidationException::withMessages([
+                        'payment_gateway_id' => 'Product Sales income category is not configured.',
+                    ]);
+                }
+
+                $isCash = strtolower($gateway->type ?? '') === 'cash';
+
+                Transaction::create([
+                    'order_id' => $lockedOrder->id,
+                    'invoice_id' => null,
+                    'invoice_item_id' => null,
+
+                    'user_id' => $lockedOrder->user_id,
+                    'category_id' => $category->id,
+                    'payment_gateway_id' => $gateway->id,
+
+                    'trx_id' => $isCash
+                        ? 'CASH-' . Str::upper(Str::random(8))
+                        : $validated['trx_id'],
+
+                    'sender_mobile' => $isCash
+                        ? 'N/A'
+                        : $validated['sender_mobile'],
+
+                    'amount' => $lockedOrder->total_amount,
+                    'status' => 'pending',
+                    'source' => 'member',
+
+                    'recorded_by' => auth()->id(),
+                    'verified_by' => null,
+                    'verified_at' => null,
+
+                    'rejection_reason' => null,
+                    'receipt_path' => $receiptPath,
+                    'submitted_at' => now(),
+                ]);
+
+                $lockedOrder->update([
+                    'payment_status' => 'pending',
+                ]);
+            }, 3);
+
+            app(FinancialTransactionService::class)
+                ->clearFinancialCache();
+
+            return redirect()
+                ->route('orders.index')
+                ->with('success', 'Order payment submitted successfully. Awaiting admin verification.');
+
+        } catch (Throwable $exception) {
+            if ($receiptPath) {
+                Storage::disk('public')->delete($receiptPath);
+            }
+
+            throw $exception;
+        }
+    }
+
 }

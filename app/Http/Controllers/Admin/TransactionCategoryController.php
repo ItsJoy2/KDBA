@@ -25,23 +25,38 @@ class TransactionCategoryController extends Controller
     public function store(
         StoreTransactionCategoryRequest $request
     ): RedirectResponse {
-        TransactionCategory::create($request->validated());
+        $data = $request->validated();
 
-        return back()->with('success', 'Transaction category created successfully.');
+        // Admin-created categories must never be system categories.
+        $data['is_system'] = false;
+
+        TransactionCategory::create($data);
+
+        return back()->with(
+            'success',
+            'Transaction category created successfully.'
+        );
     }
 
     public function update(
         UpdateTransactionCategoryRequest $request,
         TransactionCategory $category
     ): RedirectResponse {
+        // System categories cannot be modified.
+        if ($category->is_system) {
+            return back()->with(
+                'error',
+                'System categories cannot be edited.'
+            );
+        }
+
         $data = $request->validated();
 
-        // Prevent changing income to expense or vice versa
-        // when existing financial transactions use this category.
+        // Prevent changing category type when transactions already use it.
         if (
-            isset($data['type'])
-            && $data['type'] !== $category->type
-            && $category->transactions()->exists()
+            isset($data['type']) &&
+            $data['type'] !== $category->type &&
+            $category->transactions()->exists()
         ) {
             return back()
                 ->withInput()
@@ -50,14 +65,28 @@ class TransactionCategoryController extends Controller
                 ]);
         }
 
+        // Never allow changing system status through request data.
+        unset($data['is_system']);
+
         $category->update($data);
 
-        return back()->with('success', 'Transaction category updated successfully.');
+        return back()->with(
+            'success',
+            'Transaction category updated successfully.'
+        );
     }
 
     public function destroy(
         TransactionCategory $category
     ): RedirectResponse {
+        // System categories cannot be deleted.
+        if ($category->is_system) {
+            return back()->with(
+                'error',
+                'System categories cannot be deleted.'
+            );
+        }
+
         if ($category->transactions()->exists()) {
             return back()->with(
                 'error',
@@ -67,6 +96,9 @@ class TransactionCategoryController extends Controller
 
         $category->delete();
 
-        return back()->with('success', 'Transaction category deleted successfully.');
+        return back()->with(
+            'success',
+            'Transaction category deleted successfully.'
+        );
     }
 }

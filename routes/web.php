@@ -133,6 +133,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::post('/', 'store')->middleware('permission:products.buy')->name('store');
         Route::get('/{order}', 'show')->whereNumber('order')->middleware('permission:orders.view')->name('show');
         Route::patch('/{order}/status', 'updateStatus')->whereNumber('order')->middleware('permission:orders.status_update')->name('update-status');
+        Route::post('/{order}/payment', [OrderController::class, 'submitPayment'])->middleware('auth')->name('payment');
         
         Route::get('/search', [OrderController::class, 'searchSuggestions'])->name('search'); 
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Invoice;
+use App\Models\PaymentGateway;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,8 @@ class SubmitPaymentRequest extends FormRequest
 
     public function rules(): array
     {
+        $isCash = $this->isCashGateway();
+
         return [
             'payment_gateway_id' => [
                 'required',
@@ -28,18 +31,22 @@ class SubmitPaymentRequest extends FormRequest
             ],
 
             'sender_mobile' => [
-                'required',
+                Rule::requiredIf(! $isCash),
+                'nullable',
                 'string',
                 'max:100',
             ],
 
             'trx_id' => [
-                'required',
+                Rule::requiredIf(! $isCash),
+                'nullable',
                 'string',
                 'min:4',
                 'max:150',
                 'regex:/^[A-Za-z0-9_-]+$/',
-                Rule::unique('transactions', 'trx_id'),
+                ...(! $isCash
+                    ? [Rule::unique('transactions', 'trx_id')]
+                    : []),
             ],
 
             'receipt' => [
@@ -49,6 +56,24 @@ class SubmitPaymentRequest extends FormRequest
                 'max:5120',
             ],
         ];
+    }
+
+    /**
+     * Determine whether the selected gateway is Cash.
+     */
+    private function isCashGateway(): bool
+    {
+        $gatewayId = $this->input('payment_gateway_id');
+
+        if (! $gatewayId) {
+            return false;
+        }
+
+        return PaymentGateway::query()
+            ->whereKey($gatewayId)
+            ->where('type', 'cash')
+            ->where('is_active', true)
+            ->exists();
     }
 
     public function messages(): array

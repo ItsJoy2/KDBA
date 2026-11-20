@@ -18,16 +18,32 @@ class PaymentGatewaySeeder extends Seeder
         ];
 
         foreach ($gateways as $index => $gateway) {
-            DB::table('payment_gateways')->insertOrIgnore([
-                'name' => $gateway['name'],
-                'type' => $gateway['type'],
-                'account_number' => null,
-                'instruction' => null,
-                'is_active' => false,
-                'sort_order' => $index + 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('payment_gateways')->updateOrInsert(
+                ['name' => $gateway['name']],
+                [
+                    'type' => $gateway['type'],
+                    'account_number' => null,
+                    'instruction' => null,
+                    'is_active' => false,
+                    'sort_order' => $index + 1,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
         }
+
+        // Cash payment gateway.
+        DB::table('payment_gateways')->updateOrInsert(
+            ['name' => 'Cash'],
+            [
+                'type' => 'cash',
+                'account_number' => null,
+                'instruction' => 'Direct cash payment received.',
+                'is_active' => true,
+                'sort_order' => count($gateways) + 1,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
     }
 }

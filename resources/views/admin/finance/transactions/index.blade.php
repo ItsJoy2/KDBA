@@ -1,6 +1,8 @@
 
 @extends('layouts.app')
 
+@section('title', ' All Transactions')
+
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -89,17 +91,37 @@
                             <th>Reference</th>
                             <th>Category</th>
                             <th>Description</th>
-                            <th>Amount</th>
+                            <th class="text-end">Amount</th>
                             <th>Status</th>
                             <th>Recorded By</th>
+                            <th class="text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($transactions as $transaction)
                             <tr>
                                 <td>{{ $transactions->firstItem() + $loop->index }}</td>
-                                <td>{{ $transaction->created_at?->format('d M Y, h:i A') }}</td>
-                                <td><code>{{ $transaction->trx_id }}</code></td>
+
+                                <td>
+                                    {{ $transaction->created_at?->format('d M Y, h:i A') }}
+                                </td>
+
+                                <td>
+                                    @if($transaction->invoice)
+                                        <strong>{{ $transaction->user?->full_name ?? 'Unknown User' }}</strong>
+                                        <div class="small text-muted">
+                                            {{ $transaction->invoice->invoice_number }}
+                                        </div>
+                                    @elseif($transaction->order)
+                                        <strong>{{ $transaction->order->user?->full_name ?? 'Unknown User' }}</strong>
+                                        <div class="small text-muted">
+                                            {{ $transaction->order->order_number }}
+                                        </div>
+                                    @else
+                                        <code>{{ $transaction->trx_id }}</code>
+                                    @endif
+                                </td>
+
                                 <td>
                                     @if($transaction->category)
                                         <span class="badge {{ $transaction->category->type === 'income' ? 'bg-success' : 'bg-danger' }}">
@@ -109,12 +131,18 @@
                                         <span class="text-muted">Uncategorized</span>
                                     @endif
                                 </td>
+
                                 <td>
-                                    {{ \Illuminate\Support\Str::limit($transaction->description ?? $transaction->invoice?->title ?? '—', 60) }}
+                                    {{ \Illuminate\Support\Str::limit(
+                                        $transaction->description ?? $transaction->invoice?->title ?? '—',
+                                        60
+                                    ) }}
                                 </td>
+
                                 <td class="text-end fw-semibold">
                                     ৳{{ number_format((float) $transaction->amount, 2) }}
                                 </td>
+
                                 <td>
                                     @php
                                         $statusClass = match($transaction->status) {
@@ -124,15 +152,36 @@
                                             default => 'secondary',
                                         };
                                     @endphp
+
                                     <span class="badge bg-{{ $statusClass }}">
                                         {{ ucfirst($transaction->status) }}
                                     </span>
                                 </td>
-                                <td>{{ $transaction->user?->full_name ?? 'System' }}</td>
+
+                                <td>
+                                    @if($transaction->recordedBy)
+                                        <strong>{{ $transaction->recordedBy->full_name }}</strong>
+                                        <div class="small text-muted">
+                                            {{ $transaction->recordedBy->roles->pluck('name')->join(', ') ?: 'User' }}
+                                        </div>
+                                    @else
+                                        <span class="text-muted">System</span>
+                                    @endif
+                                </td>
+
+                                <td class="text-center">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#transactionModal-{{ $transaction->id }}">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="9" class="text-center text-muted py-4">
                                     No transactions found.
                                 </td>
                             </tr>
@@ -145,4 +194,7 @@
         </div>
     </div>
 </div>
+
+@include('admin.finance.transactions.partials.__form')
+
 @endsection

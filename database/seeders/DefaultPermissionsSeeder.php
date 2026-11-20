@@ -7,6 +7,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class DefaultPermissionsSeeder extends Seeder
 {
@@ -224,19 +225,19 @@ class DefaultPermissionsSeeder extends Seeder
             $customPermissions
         ): void {
 
-
+            /*
+             * Create or update all permissions.
+             */
             foreach ($modules as $module => $actions) {
-
                 foreach ($actions as $action => $description) {
 
-                    // Support indexed permission definitions.
+                    // Support indexed and associative definitions.
                     if (is_int($action)) {
                         $action = $description;
                         $description = null;
                     }
 
                     $slug = "{$module}.{$action}";
-
                     $custom = $customPermissions[$slug] ?? [];
 
                     DB::table('permissions')->updateOrInsert(
@@ -259,14 +260,15 @@ class DefaultPermissionsSeeder extends Seeder
                                 ),
 
                             'updated_at' => now(),
-                        ] + [
                             'created_at' => now(),
                         ]
                     );
                 }
             }
 
-
+            /*
+             * Create or update Super Admin role.
+             */
             $superAdmin = Role::updateOrCreate(
                 ['slug' => 'super-admin'],
                 [
@@ -277,48 +279,80 @@ class DefaultPermissionsSeeder extends Seeder
                 ]
             );
 
+            /*
+             * Assign all permissions to Super Admin.
+             */
+            $permissionIds = DB::table('permissions')->pluck('id');
 
-            $permissionIds = DB::table('permissions')
-                ->pluck('id');
+            $superAdminPermissions = $permissionIds
+                ->map(fn ($permissionId) => [
+                    'role_id' => $superAdmin->id,
+                    'permission_id' => $permissionId,
+                ])
+                ->all();
 
-            foreach ($permissionIds as $permissionId) {
+            DB::table('role_has_permissions')->insertOrIgnore(
+                $superAdminPermissions
+            );
 
-                DB::table('role_has_permissions')->updateOrInsert(
-                    [
-                        'role_id' => $superAdmin->id,
-                        'permission_id' => $permissionId,
-                    ],
-                    []
+            /*
+             * Find Member role.
+             */
+            $member = Role::query()
+                ->where('slug', 'member')
+                ->first();
+
+            if (! $member) {
+                throw new RuntimeException(
+                    'Member role not found. Run RoleSeeder first.'
                 );
             }
 
+            /*
+             * Default permissions for Member.
+             */
+            $memberPermissionSlugs = [
+                'products.buy',
+            ];
 
-            $member = Role::where('slug', 'member')->first();
+            $memberPermissionIds = DB::table('permissions')
+                ->whereIn('slug', $memberPermissionSlugs)
+                ->pluck('id');
 
-            if ($member) {
-
-                $memberPermissionIds = DB::table('permissions')
-                    ->whereIn('slug', [
-                        'products.buy',
-                        'orders.view',
-                        'orders.view_own',
-                    ])
-                    ->pluck('id');
-
-                foreach ($memberPermissionIds as $permissionId) {
-
-                    DB::table('role_has_permissions')->updateOrInsert(
-                        [
-                            'role_id' => $member->id,
-                            'permission_id' => $permissionId,
-                        ],
-                        []
-                    );
-                }
+            if ($memberPermissionIds->count() !== count($memberPermissionSlugs)) {
+                throw new RuntimeException(
+                    'One or more required Member permissions were not found.'
+                );
             }
+
+            $memberPermissions = $memberPermissionIds
+                ->map(fn ($permissionId) => [
+                    'role_id' => $member->id,
+                    'permission_id' => $permissionId,
+                ])
+                ->all();
+
+            DB::table('role_has_permissions')->insertOrIgnore(
+                $memberPermissions
+            );
         });
 
+        /*
+         * Clear caches AFTER successful transaction.
+         */
         Cache::forget('permissions');
         Cache::forget('roles');
+
+        $this->command?->info(
+            'Default permissions seeded successfully.'
+        );
+
+        $this->command?->info(
+            'Super Admin: All permissions assigned.'
+        );
+
+        $this->command?->info(
+            'Member: products.buy, orders.view, orders.view_own assigned.'
+        );
     }
 }

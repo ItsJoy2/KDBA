@@ -10,37 +10,64 @@ use App\Models\PaymentGateway;
 use App\Models\User;
 use App\Services\Membership\MembershipFeeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
 
 class InvoiceController extends Controller
 {
     /**
      * Admin invoice listing.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $search = trim($validated['search'] ?? '');
+
         $invoices = Invoice::query()
             ->with([
-                'user:id,full_name,membership_number',
-                'transactions' => fn ($query) => $query
-                    ->with('paymentGateway')
-                    ->latest(),
+                'user:id,full_name,membership_number,mobile,email',
+                'items',
+                'transactions' => function ($query) {
+                    $query->whereNull('invoice_item_id')
+                        ->whereIn('status', ['pending', 'approved', 'rejected'])
+                        ->with('paymentGateway:id,name,account_number')
+                        ->latest('id');
+                },
             ])
-            ->latest()
-            ->paginate(15);
+            ->when($search !== '', function ($query) use ($search) {
+                $query->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where(function ($q) use ($search) {
+                        $q->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('membership_number', 'like', "%{$search}%")
+                            ->orWhere('mobile', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                });
+            })
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('admin.invoices.index', compact('invoices'));
+        $paymentGateways = PaymentGateway::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.invoices.index', compact(
+            'invoices',
+            'paymentGateways',
+            'search'
+        ));
     }
 
-    /**
-     * Admin creates an invoice.
-     *
-     * The amount is calculated on the server. The submitted amount and
-     * member_status are not trusted.
-     */
     public function store(
         StoreInvoiceRequest $request,
         MembershipFeeService $feeService

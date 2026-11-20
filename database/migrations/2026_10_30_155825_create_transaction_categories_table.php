@@ -16,6 +16,7 @@ return new class extends Migration
             $table->enum('type', ['income', 'expense']);
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
+             $table->boolean('is_system')->default(false);
             $table->timestamps();
             $table->index(['type', 'is_active']);
         });

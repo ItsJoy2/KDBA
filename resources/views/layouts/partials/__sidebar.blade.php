@@ -166,40 +166,37 @@
                 @endif
 
                 
-                {{-- ==================== FINANCE ==================== --}}
+                {{-- ==================== TRANSACTIONS ==================== --}}
 
                 @if(
                     auth()->user()->hasPermission('transactions.view_all') ||
                     auth()->user()->hasPermission('transactions.create') ||
                     auth()->user()->hasPermission('finance.reports') ||
-                    auth()->user()->hasPermission('finance_categories.view') ||
-                    auth()->user()->hasPermission('invoices.view') ||
-                    auth()->user()->hasPermission('transactions.view')
+                    auth()->user()->hasPermission('finance_categories.view')
                 )
-                    <li class="nav-header">FINANCE</li>
+                    {{-- <li class="nav-header">TRANSACTIONS</li> --}}
 
                     <li class="nav-item {{
                         request()->routeIs(
-                            'admin.finance.*',
+                            'admin.finance.transactions.*',
                             'admin.transaction-categories.*',
-                            'admin.transactions.manual.*',
-                            'admin.invoices.*',
-                            'admin.payment-transactions.*'
+                            'admin.transactions.manual.*'
                         ) ? 'menu-open' : ''
                     }}">
 
-                        <a href="#" class="nav-link {{
+                        <a href="#"
+                        class="nav-link {{
                             request()->routeIs(
-                                'admin.finance.*',
+                                'admin.finance.transactions.*',
                                 'admin.transaction-categories.*',
-                                'admin.transactions.manual.*',
-                                'admin.invoices.*',
-                                'admin.payment-transactions.*'
+                                'admin.transactions.manual.*'
                             ) ? 'active' : ''
                         }}">
-                            <i class="nav-icon bi bi-cash-stack"></i>
+
+                            <i class="nav-icon bi bi-wallet2"></i>
+
                             <p>
-                                Finance
+                                Transactions
                                 <i class="nav-arrow bi bi-chevron-right"></i>
                             </p>
                         </a>
@@ -211,6 +208,7 @@
                                 <li class="nav-item">
                                     <a href="{{ route('admin.finance.transactions.index') }}"
                                     class="nav-link {{ request()->routeIs('admin.finance.transactions.*') ? 'active' : '' }}">
+
                                         <i class="nav-icon bi bi-circle"></i>
                                         <p>All Transactions</p>
                                     </a>
@@ -222,7 +220,8 @@
                                 <li class="nav-item">
                                     <a href="{{ route('admin.transactions.manual.create') }}"
                                     class="nav-link {{ request()->routeIs('admin.transactions.manual.create') ? 'active' : '' }}">
-                                        <i class="nav-icon bi bi-plus-circle"></i>
+
+                                        <i class="nav-icon bi bi-circle"></i>
                                         <p>Add Income / Expense</p>
                                     </a>
                                 </li>
@@ -233,7 +232,8 @@
                                 <li class="nav-item">
                                     <a href="{{ route('admin.transaction-categories.index') }}"
                                     class="nav-link {{ request()->routeIs('admin.transaction-categories.*') ? 'active' : '' }}">
-                                        <i class="nav-icon bi bi-tags"></i>
+
+                                        <i class="nav-icon bi bi-circle"></i>
                                         <p>Transaction Categories</p>
                                     </a>
                                 </li>
@@ -244,18 +244,58 @@
                                 <li class="nav-item">
                                     <a href="{{ route('admin.finance.reports.index') }}"
                                     class="nav-link {{ request()->routeIs('admin.finance.reports.*') ? 'active' : '' }}">
+
                                         <i class="nav-icon bi bi-circle"></i>
                                         <p>Finance Reports</p>
                                     </a>
                                 </li>
                             @endif
 
+                        </ul>
+                    </li>
+                @endif
+
+
+                {{-- ==================== INVOICES ==================== --}}
+
+                @if(
+                    auth()->user()->hasPermission('invoices.view') ||
+                    auth()->user()->hasPermission('transactions.view')
+                )
+                    {{-- <li class="nav-header">INVOICES</li> --}}
+
+                    <li class="nav-item {{
+                        request()->routeIs(
+                            'admin.invoices.*',
+                            'admin.payment-transactions.*'
+                        ) ? 'menu-open' : ''
+                    }}">
+
+                        <a href="#"
+                        class="nav-link {{
+                            request()->routeIs(
+                                'admin.invoices.*',
+                                'admin.payment-transactions.*'
+                            ) ? 'active' : ''
+                        }}">
+
+                            <i class="nav-icon bi bi-receipt"></i>
+
+                            <p>
+                                Invoices
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                            </p>
+                        </a>
+
+                        <ul class="nav nav-treeview">
+
                             {{-- All Invoices --}}
                             @if(auth()->user()->hasPermission('invoices.view'))
                                 <li class="nav-item">
                                     <a href="{{ route('admin.invoices.index') }}"
                                     class="nav-link {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}">
-                                        <i class="nav-icon bi bi-receipt"></i>
+
+                                        <i class="nav-icon bi bi-circle"></i>
                                         <p>All Invoices</p>
                                     </a>
                                 </li>
@@ -266,8 +306,18 @@
                                 <li class="nav-item">
                                     <a href="{{ route('admin.payment-transactions.index') }}"
                                     class="nav-link {{ request()->routeIs('admin.payment-transactions.*') ? 'active' : '' }}">
+
                                         <i class="nav-icon bi bi-shield-check"></i>
-                                        <p>Payment Verification</p>
+
+                                        <p>
+                                            Payment Verification
+
+                                            @if(($pendingPaymentRequestsCount ?? 0) > 0)
+                                                <span class="badge bg-danger ms-auto">
+                                                    {{ $pendingPaymentRequestsCount > 99 ? '99+' : $pendingPaymentRequestsCount }}
+                                                </span>
+                                            @endif
+                                        </p>
                                     </a>
                                 </li>
                             @endif
@@ -286,7 +336,7 @@
                     auth()->user()->hasPermission('cache.clear') ||
                     auth()->user()->roles()->where('slug', 'super-admin')->exists()
                 )
-                    <li class="nav-header">SETTINGS</li>
+                    {{-- <li class="nav-header">SETTINGS</li> --}}
 
                     <li class="nav-item {{ request()->routeIs(
                         'admin.membership-fees.*',

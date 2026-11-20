@@ -58,4 +58,9 @@ class Order extends Model
     {
         return $query->where('order_status', $status);
     }
+    
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
 }

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\Invoice;
 use App\Models\PaymentGateway;
 use App\Models\Role;
@@ -453,11 +453,7 @@ class UserController extends Controller
         ));
     }
 
-    public function update(
-        UpdateUserRequest $request,
-        User $user,
-        PermissionService $permissionService
-    ): RedirectResponse {
+    public function update( UpdateUserRequest $request, User $user, PermissionService $permissionService ): RedirectResponse {
         $actor = $request->user();
 
         abort_unless(
@@ -472,7 +468,7 @@ class UserController extends Controller
         // Lawyers can only update their own assistants/apprentices.
         if (! $this->canManageAllUsers($actor)) {
             abort_unless(
-                $target->lawyer_id === $actor->id
+                (int) $target->lawyer_id === (int) $actor->id
                     && in_array($target->member_status, [
                         User::MEMBER_STATUS_LAWYER_ASSISTANT,
                         User::MEMBER_STATUS_APPRENTICE,
@@ -483,6 +479,14 @@ class UserController extends Controller
 
             $data['lawyer_id'] = $actor->id;
         }
+
+        // Preserve the existing password when the password field is blank.
+        if (blank($data['password'] ?? null)) {
+            unset($data['password']);
+        }
+
+        // File fields are handled separately.
+        unset($data['photo'], $data['nid_images']);
 
         $canAssignRoles = $this->canAssignRoles();
 
@@ -500,6 +504,9 @@ class UserController extends Controller
         $oldFilesToDelete = [];
 
         try {
+            /*
+            * Store new profile photo.
+            */
             if ($request->hasFile('photo')) {
                 $newPhoto = $this->storePrivateFile(
                     $request->file('photo'),
@@ -515,58 +522,79 @@ class UserController extends Controller
                 $data['photo'] = $newPhoto;
             }
 
+            /*
+            * Preserve existing NID images.
+            * Replace only the side for which a new file was uploaded.
+            */
             $existingNidImages = $target->nid_images ?? [];
 
-            foreach (['front', 'back'] as $side) {
-                if ($request->hasFile("nid_images.{$side}")) {
-                    $newPath = $this->storePrivateFile(
-                        $request->file("nid_images.{$side}"),
-                        'members/nid'
-                    );
-
-                    $uploadedFiles[] = $newPath;
-
-                    if (! empty($existingNidImages[$side])) {
-                        $oldFilesToDelete[] = $existingNidImages[$side];
-                    }
-
-                    $existingNidImages[$side] = $newPath;
-                }
+            if (is_string($existingNidImages)) {
+                $existingNidImages = json_decode(
+                    $existingNidImages,
+                    true
+                ) ?: [];
             }
 
-            unset($data['nid_images']);
+            if (! is_array($existingNidImages)) {
+                $existingNidImages = [];
+            }
+
+            $nidImagesChanged = false;
+
+            foreach (['front', 'back'] as $side) {
+                if (! $request->hasFile("nid_images.{$side}")) {
+                    continue;
+                }
+
+                $newPath = $this->storePrivateFile(
+                    $request->file("nid_images.{$side}"),
+                    'members/nid'
+                );
+
+                $uploadedFiles[] = $newPath;
+
+                if (! empty($existingNidImages[$side])) {
+                    $oldFilesToDelete[] = $existingNidImages[$side];
+                }
+
+                $existingNidImages[$side] = $newPath;
+                $nidImagesChanged = true;
+            }
+
+            $targetId = $target->id;
 
             DB::transaction(function () use (
-                $target,
+                $targetId,
                 $data,
                 $existingNidImages,
-                $request,
+                $nidImagesChanged,
+                $actor,
                 $canAssignRoles,
                 $rolesSubmitted,
                 $selectedRoleIds,
-                $permissionService,
-                $actor
-            ) {
+                $permissionService
+            ): void {
                 $lockedUser = User::query()
-                    ->whereKey($target->id)
+                    ->whereKey($targetId)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $lockedUser->forceFill($data);
+                // Update only the validated fields.
+                $lockedUser->fill($data);
 
                 $memberStatusChanged = $lockedUser->isDirty('member_status');
-
                 $memberTypeChanged = $lockedUser->isDirty('member_type');
 
-                if (
-                    $request->hasFile('nid_images.front')
-                    || $request->hasFile('nid_images.back')
-                ) {
+                // Update NID images only when a new file was uploaded.
+                if ($nidImagesChanged) {
                     $lockedUser->nid_images = $existingNidImages ?: null;
                 }
 
-                // Remove membership-only fields when status is not member.
-                if ($lockedUser->member_status !== User::MEMBER_STATUS_MEMBER) {
+                // Clear membership-specific fields for non-members.
+                if (
+                    $lockedUser->member_status
+                    !== User::MEMBER_STATUS_MEMBER
+                ) {
                     $lockedUser->member_type = null;
                     $lockedUser->chamber_room_no = null;
                     $lockedUser->chamber_type = null;
@@ -582,16 +610,26 @@ class UserController extends Controller
 
                 $lockedUser->save();
 
-                // Create initial admission invoice when a member is assigned.
+                /*
+                * Generate registration invoice when:
+                * - A user becomes a member, or
+                * - An existing member gets a membership type.
+                *
+                * MembershipFeeService should handle duplicate invoice prevention.
+                */
                 if (
                     $lockedUser->isMember()
                     && $lockedUser->member_type
                     && ($memberStatusChanged || $memberTypeChanged)
                 ) {
                     app(MembershipFeeService::class)
-                        ->createRegistrationInvoice($lockedUser, $actor->id);
+                        ->createRegistrationInvoice(
+                            $lockedUser,
+                            $actor->id
+                        );
                 }
 
+                // Synchronize roles only when authorized.
                 if ($canAssignRoles && $rolesSubmitted) {
                     $roleIds = $this->resolveRoleIds(
                         $selectedRoleIds,
@@ -616,7 +654,9 @@ class UserController extends Controller
                 }
             });
 
-            // Delete replaced files only after successful DB commit.
+            /*
+            * Delete old files only after the database transaction succeeds.
+            */
             foreach (array_unique($oldFilesToDelete) as $path) {
                 Storage::disk('local')->delete($path);
             }
@@ -624,9 +664,19 @@ class UserController extends Controller
             $this->clearUserCaches();
 
             return redirect()
-                ->route('users.show', $target)
+                ->route('users.index', $target)
                 ->with('success', 'User updated successfully.');
+
+        } catch (ValidationException $exception) {
+            // Remove newly uploaded files if validation inside the transaction fails.
+            foreach ($uploadedFiles as $path) {
+                Storage::disk('local')->delete($path);
+            }
+
+            throw $exception;
+
         } catch (Throwable $exception) {
+            // Rollback cleanup: do not leave newly uploaded orphan files.
             foreach ($uploadedFiles as $path) {
                 Storage::disk('local')->delete($path);
             }
@@ -646,7 +696,6 @@ class UserController extends Controller
                 );
         }
     }
-
     public function approve(Request $request, User $user): RedirectResponse
     {
         abort_unless(

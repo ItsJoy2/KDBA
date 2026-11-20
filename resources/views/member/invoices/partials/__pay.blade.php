@@ -1,5 +1,4 @@
-
-{{-- Payment Modal --}}
+{{-- Member Payment Modal --}}
 <div class="modal fade" id="memberPaymentModal" tabindex="-1"
      aria-labelledby="memberPaymentModalLabel" aria-hidden="true">
 
@@ -52,17 +51,18 @@
                             <span class="text-danger">*</span>
                         </label>
 
-                        <select
-                            name="payment_gateway_id"
-                            id="memberPaymentGateway"
-                            class="form-select"
-                            required
-                        >
+                        <select name="payment_gateway_id"
+                                id="memberPaymentGateway"
+                                class="form-select"
+                                required>
+
                             <option value="">Select gateway</option>
 
                             @foreach($paymentGateways as $gateway)
-                                <option value="{{ $gateway->id }}">
+                                <option value="{{ $gateway->id }}"
+                                        data-type="{{ $gateway->type }}">
                                     {{ $gateway->name }}
+
                                     @if($gateway->account_number)
                                         ({{ $gateway->account_number }})
                                     @endif
@@ -80,16 +80,14 @@
                         <div class="input-group">
                             <span class="input-group-text">৳</span>
 
-                            <input
-                                type="number"
-                                id="memberPaymentAmount"
-                                name="amount"
-                                class="form-control"
-                                step="0.01"
-                                min="0.01"
-                                readonly
-                                required
-                            >
+                            <input type="number"
+                                   id="memberPaymentAmount"
+                                   name="amount"
+                                   class="form-control"
+                                   step="0.01"
+                                   min="0.01"
+                                   readonly
+                                   required>
                         </div>
 
                         <small class="text-muted">
@@ -98,41 +96,37 @@
                     </div>
 
                     {{-- Sender Mobile --}}
-                    <div class="mb-3">
+                    <div class="mb-3" id="memberSenderField">
                         <label for="memberSenderMobile" class="form-label">
                             Sender Account / Mobile
                             <span class="text-danger">*</span>
                         </label>
 
-                        <input
-                            type="text"
-                            name="sender_mobile"
-                            id="memberSenderMobile"
-                            class="form-control"
-                            maxlength="100"
-                            autocomplete="off"
-                            required
-                        >
+                        <input type="text"
+                               name="sender_mobile"
+                               id="memberSenderMobile"
+                               class="form-control"
+                               maxlength="100"
+                               autocomplete="off"
+                               required>
                     </div>
 
                     {{-- Transaction ID --}}
-                    <div class="mb-3">
+                    <div class="mb-3" id="memberTrxField">
                         <label for="memberTrxId" class="form-label">
                             Transaction ID (TrxID)
                             <span class="text-danger">*</span>
                         </label>
 
-                        <input
-                            type="text"
-                            name="trx_id"
-                            id="memberTrxId"
-                            class="form-control"
-                            minlength="4"
-                            maxlength="150"
-                            pattern="[A-Za-z0-9_-]+"
-                            autocomplete="off"
-                            required
-                        >
+                        <input type="text"
+                               name="trx_id"
+                               id="memberTrxId"
+                               class="form-control"
+                               minlength="4"
+                               maxlength="150"
+                               pattern="[A-Za-z0-9_-]+"
+                               autocomplete="off"
+                               required>
 
                         <small class="text-muted">
                             Only letters, numbers, underscore and hyphen.
@@ -145,13 +139,11 @@
                             Payment Receipt
                         </label>
 
-                        <input
-                            type="file"
-                            name="receipt"
-                            id="memberReceipt"
-                            class="form-control"
-                            accept=".jpg,.jpeg,.png,.pdf"
-                        >
+                        <input type="file"
+                               name="receipt"
+                               id="memberReceipt"
+                               class="form-control"
+                               accept=".jpg,.jpeg,.png,.pdf">
 
                         <small class="text-muted">
                             JPG, JPEG, PNG or PDF. Maximum 5 MB.
@@ -185,3 +177,64 @@
         </div>
     </div>
 </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const form = document.getElementById('memberPaymentForm');
+
+    if (!form) {
+        return;
+    }
+
+    const gatewayInput = document.getElementById('memberPaymentGateway');
+
+    const senderField = document.getElementById('memberSenderField');
+    const trxField = document.getElementById('memberTrxField');
+
+    const senderInput = document.getElementById('memberSenderMobile');
+    const trxInput = document.getElementById('memberTrxId');
+
+    const modalElement = document.getElementById('memberPaymentModal');
+
+    /**
+     * Toggle payment fields based on selected gateway.
+     */
+    function toggleMemberCashFields() {
+
+        const selectedOption =
+            gatewayInput.options[gatewayInput.selectedIndex];
+
+        const isCash = selectedOption?.dataset.type === 'cash';
+
+        senderField.classList.toggle('d-none', isCash);
+        trxField.classList.toggle('d-none', isCash);
+
+        senderInput.required = !isCash;
+        trxInput.required = !isCash;
+
+        if (isCash) {
+            senderInput.value = '';
+            trxInput.value = '';
+        }
+    }
+
+    gatewayInput.addEventListener('change', toggleMemberCashFields);
+
+    // Initial state
+    toggleMemberCashFields();
+
+    // Reset fields when modal closes
+    modalElement.addEventListener('hidden.bs.modal', function () {
+
+        form.reset();
+
+        toggleMemberCashFields();
+
+        document.getElementById('memberPaymentErrors')
+            ?.classList.add('d-none');
+    });
+
+});
+</script>

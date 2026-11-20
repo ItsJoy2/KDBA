@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\PaymentGateway;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,8 +23,7 @@ class AdminStoreTransactionRequest extends FormRequest
             return false;
         }
 
-        // Auto-approval requires an additional permission.
-        if ($this->boolean('auto_approve')) {
+        if ($this->input('status') === 'approved') {
             return $user->hasPermission('transactions.verify');
         }
 
@@ -32,12 +32,42 @@ class AdminStoreTransactionRequest extends FormRequest
 
     public function rules(): array
     {
+        $isCash = $this->isCashGateway();
+
         return [
+            /*
+            |--------------------------------------------------------------------------
+            | Invoice / Order Reference
+            |--------------------------------------------------------------------------
+            | Exactly one reference must be provided.
+            */
+
             'invoice_id' => [
-                'required',
+                'nullable',
+                'required_without:order_id',
+                'prohibits:order_id',
                 'integer',
-                Rule::exists('invoices', 'id')
-                    ->whereIn('status', ['pending', 'overdue']),
+                'exists:invoices,id',
+            ],
+
+            'order_id' => [
+                'nullable',
+                'required_without:invoice_id',
+                'prohibits:invoice_id',
+                'integer',
+                'exists:orders,id',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Payment Details
+            |--------------------------------------------------------------------------
+            */
+
+            'amount' => [
+                'required',
+                'numeric',
+                'min:0.01',
             ],
 
             'payment_gateway_id' => [
@@ -48,31 +78,22 @@ class AdminStoreTransactionRequest extends FormRequest
             ],
 
             'sender_mobile' => [
-                'required',
+                Rule::requiredIf(! $isCash),
+                'nullable',
                 'string',
                 'max:100',
             ],
 
             'trx_id' => [
-                'required',
+                Rule::requiredIf(! $isCash),
+                'nullable',
                 'string',
                 'min:4',
                 'max:150',
                 'regex:/^[A-Za-z0-9_-]+$/',
-                Rule::unique('transactions', 'trx_id'),
-            ],
-
-            'amount' => [
-                'required',
-                'numeric',
-                'decimal:0,2',
-                'gt:0',
-                'max:9999999999.99',
-            ],
-
-            'auto_approve' => [
-                'sometimes',
-                'boolean',
+                ...(! $isCash ? [
+                    Rule::unique('transactions', 'trx_id'),
+                ] : []),
             ],
 
             'receipt' => [
@@ -81,30 +102,79 @@ class AdminStoreTransactionRequest extends FormRequest
                 'mimes:jpg,jpeg,png,pdf',
                 'max:5120',
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Transaction Status
+            |--------------------------------------------------------------------------
+            */
+
+            'status' => [
+                'required',
+                Rule::in(['pending', 'approved']),
+            ],
         ];
+    }
+
+    /**
+     * Determine whether the selected gateway is Cash.
+     */
+    private function isCashGateway(): bool
+    {
+        $gatewayId = $this->input('payment_gateway_id');
+
+        if (! $gatewayId) {
+            return false;
+        }
+
+        return PaymentGateway::query()
+            ->whereKey($gatewayId)
+            ->where('type', 'cash')
+            ->where('is_active', true)
+            ->exists();
     }
 
     public function messages(): array
     {
         return [
-            'invoice_id.required' => 'Please select an invoice.',
-            'invoice_id.exists' => 'The selected invoice is unavailable or already paid.',
+            'invoice_id.required_without' =>
+                'Please select an invoice or order.',
 
-            'payment_gateway_id.required' => 'Please select a payment gateway.',
-            'payment_gateway_id.exists' => 'The selected payment gateway is unavailable.',
+            'invoice_id.prohibits' =>
+                'Invoice and order cannot be selected together.',
 
-            'sender_mobile.required' => 'Sender account/mobile number is required.',
+            'order_id.required_without' =>
+                'Please select an order or invoice.',
 
-            'trx_id.required' => 'Transaction ID is required.',
-            'trx_id.unique' => 'This transaction ID has already been used.',
-            'trx_id.regex' => 'Transaction ID may contain only letters, numbers, hyphens and underscores.',
+            'order_id.prohibits' =>
+                'Order and invoice cannot be selected together.',
 
-            'amount.required' => 'Payment amount is required.',
-            'amount.decimal' => 'Amount can contain a maximum of two decimal places.',
-            'amount.gt' => 'Payment amount must be greater than zero.',
+            'amount.required' =>
+                'Payment amount is required.',
 
-            'receipt.mimes' => 'Receipt must be JPG, JPEG, PNG or PDF.',
-            'receipt.max' => 'Receipt cannot exceed 5 MB.',
+            'payment_gateway_id.required' =>
+                'Please select a payment gateway.',
+
+            'payment_gateway_id.exists' =>
+                'The selected payment gateway is unavailable.',
+
+            'sender_mobile.required' =>
+                'Sender account/mobile number is required.',
+
+            'trx_id.required' =>
+                'Transaction ID is required.',
+
+            'trx_id.regex' =>
+                'Transaction ID format is invalid.',
+
+            'trx_id.unique' =>
+                'This transaction ID has already been used.',
+
+            'status.required' =>
+                'Please select a payment status.',
+
+            'status.in' =>
+                'Invalid payment status selected.',
         ];
     }
 }
