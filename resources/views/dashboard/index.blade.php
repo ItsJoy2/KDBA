@@ -1,162 +1,410 @@
-
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
 
 @section('content')
+<div class="container-fluid">
 
-{{-- Page Header --}}
-<div class="app-content-header">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-sm-6">
-                <h1 class="mb-0 fs-3">Dashboard</h1>
-            </div>
+    {{-- =====================================================
+        PAGE HEADER
+    ====================================================== --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Dashboard</h4>
+            <p class="text-muted mb-0">
+                Welcome back, {{ auth()->user()->full_name ?? 'User' }}.
+                Here is your system overview.
+            </p>
+        </div>
 
-            <div class="col-sm-6">
-                <ol class="breadcrumb float-sm-end mb-0">
-                    <li class="breadcrumb-item">
-                        <a href="{{ route('dashboard') }}">Home</a>
-                    </li>
-                    <li class="breadcrumb-item active">Dashboard</li>
-                </ol>
-            </div>
+        <div class="text-muted small mt-2 mt-md-0">
+            <i class="bi bi-calendar3 me-1"></i>
+            {{ now()->format('d M Y') }}
         </div>
     </div>
-</div>
 
-<div class="app-content">
-    <div class="container-fluid">
+    {{-- =====================================================
+        MEMBERSHIP STATISTICS
+    ====================================================== --}}
+    @if ($canViewUsers || $canApproveUsers || $canChangeMemberStatus)
+        <h6 class="text-uppercase text-muted fw-semibold mb-3">
+            Membership Overview
+        </h6>
 
-        {{-- Summary Cards --}}
-        {{-- <div class="row">
+        <div class="row g-3 mb-4">
 
-            @php
-                $stats = [
-                    [
-                        'title' => 'CPU Traffic',
-                        'value' => '10%',
-                        'icon' => 'bi-gear-fill',
-                        'color' => 'primary',
-                    ],
-                    [
-                        'title' => 'Likes',
-                        'value' => '41,410',
-                        'icon' => 'bi-hand-thumbs-up-fill',
-                        'color' => 'danger',
-                    ],
-                    [
-                        'title' => 'Sales',
-                        'value' => '760',
-                        'icon' => 'bi-cart-fill',
-                        'color' => 'success',
-                    ],
-                    [
-                        'title' => 'New Members',
-                        'value' => '2,000',
-                        'icon' => 'bi-people-fill',
-                        'color' => 'warning',
-                    ],
-                ];
-            @endphp
-
-            @foreach ($stats as $stat)
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="info-box">
-                        <span class="info-box-icon text-bg-primary shadow-sm">
-                            <i class="bi {{ $stat['icon'] }}"></i>
-                        </span>
-
-                        <div class="info-box-content">
-                            <span class="info-box-text">
-                                {{ $stat['title'] }}
-                            </span>
-                            <span class="info-box-number">
-                                {{ $stat['value'] }}
-                            </span>
+            @if ($canViewUsers)
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small mb-2">Total Members</div>
+                                    <h3 class="fw-bold mb-0">
+                                        {{ number_format($totalUsers) }}
+                                    </h3>
+                                </div>
+                                <div class="rounded-circle bg-primary bg-opacity-10 px-3 py-2">
+                                    <i class="bi bi-people text-primary fs-4"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            @endforeach
 
-        </div> --}}
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small mb-2">Active Members</div>
+                                    <h3 class="fw-bold text-success mb-0">
+                                        {{ number_format($activeUsers) }}
+                                    </h3>
+                                </div>
+                                <div class="rounded-circle bg-success bg-opacity-10 px-3 py-2">
+                                    <i class="bi bi-person-check text-success fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
-        {{-- Summary Cards --}}
-    <div class="row">
+            @if ($canApproveUsers)
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small mb-2">Pending Approval</div>
+                                    <h3 class="fw-bold text-warning mb-0">
+                                        {{ number_format($pendingUsers) }}
+                                    </h3>
+                                </div>
+                                <div class="rounded-circle bg-warning bg-opacity-10 px-3 py-2">
+                                    <i class="bi bi-hourglass-split text-warning fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
-        @if ($canViewUsers)
-            {{-- Total Users --}}
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-primary shadow-sm">
-                        <i class="bi bi-people-fill"></i>
-                    </span>
+            @if ($canChangeMemberStatus)
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-muted small mb-2">Inactive / Suspended</div>
+                                    <h3 class="fw-bold text-danger mb-0">
+                                        {{ number_format($inactiveUsers) }}
+                                    </h3>
+                                </div>
+                                <div class="rounded-circle bg-danger bg-opacity-10 px-3 py-2">
+                                    <i class="bi bi-person-x text-danger fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Users</span>
-                        <span class="info-box-number">
-                            {{ number_format($totalUsers) }}
-                        </span>
+        </div>
+    @endif
+
+    {{-- =====================================================
+        ORDER STATISTICS
+    ====================================================== --}}
+    @if($canViewOrders)
+        <div class="row">
+
+            {{-- Total Orders --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Total Orders</p>
+                                <h4 class="fw-bold mb-0">
+                                    {{ number_format($orderStats['count']) }}
+                                </h4>
+                            </div>
+                            <div class="text-primary fs-3">
+                                <i class="bi bi-bag-check"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Active Members --}}
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-person-check-fill"></i>
-                    </span>
-
-                    <div class="info-box-content">
-                        <span class="info-box-text">Active Members</span>
-                        <span class="info-box-number">
-                            {{ number_format($activeUsers) }}
-                        </span>
+            {{-- Total Order Amount --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Total Order Amount</p>
+                                <h4 class="fw-bold mb-0">
+                                    ৳{{ number_format($orderStats['amount'], 2) }}
+                                </h4>
+                            </div>
+                            <div class="text-info fs-3">
+                                <i class="bi bi-currency-dollar"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        @endif
 
-        @if ($canApproveUsers)
-            {{-- Pending Approvals --}}
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-person-exclamation"></i>
-                    </span>
-
-                    <div class="info-box-content">
-                        <span class="info-box-text">Pending Approvals</span>
-                        <span class="info-box-number">
-                            {{ number_format($pendingUsers) }}
-                        </span>
+            {{-- Pending Orders --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Pending Orders</p>
+                                <h4 class="fw-bold text-warning mb-0">
+                                    {{ number_format($orderStats['pending_count']) }}
+                                </h4>
+                            </div>
+                            <div class="text-warning fs-3">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        @endif
 
-        @if ($canChangeMemberStatus)
-            {{-- Inactive Members --}}
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-person-x-fill"></i>
-                    </span>
-
-                    <div class="info-box-content">
-                        <span class="info-box-text">Inactive Members</span>
-                        <span class="info-box-number">
-                            {{ number_format($inactiveUsers) }}
-                        </span>
+            {{-- Pending Order Amount --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Pending Order Amount</p>
+                                <h4 class="fw-bold text-danger mb-0">
+                                    ৳{{ number_format($orderStats['pending_amount'], 2) }}
+                                </h4>
+                            </div>
+                            <div class="text-danger fs-3">
+                                <i class="bi bi-exclamation-circle"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        @endif
 
-    </div>
+        </div>
+    @endif
 
-        {{-- Monthly Sales --}}
+    {{-- =====================================================
+        INVOICE STATISTICS
+    ====================================================== --}}
+    @if($canViewInvoices)
+        <div class="row">
+
+            {{-- Total Invoice --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Total Invoice Amount</p>
+                                <h4 class="fw-bold mb-0">
+                                    ৳{{ number_format($invoiceStats['amount'], 2) }}
+                                </h4>
+                            </div>
+                            <div class="text-primary fs-3">
+                                <i class="bi bi-receipt"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Paid Amount --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Paid Amount</p>
+                                <h4 class="fw-bold text-success mb-0">
+                                    ৳{{ number_format($invoiceStats['paid'], 2) }}
+                                </h4>
+                            </div>
+                            <div class="text-success fs-3">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Pending Amount --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Pending Invoice</p>
+                                <h4 class="fw-bold text-warning mb-0">
+                                    {{$invoiceStats['pending_count'] }}
+                                </h4>
+                            </div>
+                            <div class="text-warning fs-3">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Due Amount --}}
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted mb-1">Total Pending Amount</p>
+                                <h4 class="fw-bold text-danger mb-0">
+                                    ৳{{ number_format($invoiceStats['due'], 2) }}
+                                </h4>
+                            </div>
+                            <div class="text-danger fs-3">
+                                <i class="bi bi-exclamation-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
+    {{-- =====================================================
+        TRANSACTION STATISTICS
+    ====================================================== --}}
+    @if ($canViewTransactions)
+        <h6 class="text-uppercase text-muted fw-semibold mb-3">
+            Transaction Overview
+        </h6>
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-xl-4 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-2">Total Transactions</div>
+                        <h3 class="fw-bold mb-0">
+                            {{ number_format($transactionStats['count']) }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-2">Approved Amount</div>
+                        <h3 class="fw-bold text-success mb-0">
+                            ৳{{ number_format($transactionStats['paid'], 2) }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-2">Pending Amount</div>
+                        <h3 class="fw-bold text-warning mb-0">
+                            ৳{{ number_format($transactionStats['pending'], 2) }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
+    {{-- =====================================================
+        PENDING PAYMENT VERIFICATION ALERT
+    ====================================================== --}}
+    @if ($canVerifyTransactions && $pendingPaymentRequests > 0)
+        <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center mb-4">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>{{ number_format($pendingPaymentRequests) }}</strong>
+                payment transaction(s) are waiting for verification.
+            </div>
+
+            <a href="{{ route('admin.transactions.index') }}"
+               class="btn btn-sm btn-warning mt-2 mt-md-0">
+                Review Payments
+                <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    @endif
+
+    @if($canViewFinancialChart)
+        @php
+            $growthIndicator = function ($growth, bool $inverse = false) {
+                if ($growth === null) {
+                    return [
+                        'text' => 'NEW',
+                        'class' => 'text-secondary',
+                        'icon' => '',
+                    ];
+                }
+
+                $growth = (float) $growth;
+
+                $isPositive = $growth > 0;
+                $isNegative = $growth < 0;
+
+                $isGood = $inverse
+                    ? $isNegative
+                    : $isPositive;
+
+                $class = $growth == 0
+                    ? 'text-secondary'
+                    : ($isGood ? 'text-success' : 'text-danger');
+
+                $icon = $isPositive
+                    ? 'bi-caret-up-fill'
+                    : ($isNegative ? 'bi-caret-down-fill' : '');
+
+                $text = ($growth > 0 ? '+' : '')
+                    .number_format($growth, 2)
+                    .'%';
+
+                return compact('text', 'class', 'icon');
+            };
+
+            $revenueGrowth = $growthIndicator(
+                $financialSummary['revenue_growth']
+            );
+
+            $expenseGrowth = $growthIndicator(
+                $financialSummary['expense_growth'],
+                true
+            );
+
+            $profitGrowth = $growthIndicator(
+                $financialSummary['profit_growth']
+            );
+
+            $transactionGrowth = $growthIndicator(
+                $financialSummary['transaction_growth']
+            );
+        @endphp
+
+
+
+            {{-- Monthly Financial Recap --}}
         <div class="row">
             <div class="col-12">
                 <div class="card mb-4">
@@ -178,85 +426,100 @@
                     <div class="card-body">
                         <div class="row">
 
-                            <div class="col-md-8">
+                            {{-- Income & Expense Chart --}}
+                            <div class="col-12">
                                 <p class="text-center">
-                                    <strong>Sales: January - July</strong>
+                                    <strong>Income vs Expense: January - December {{ now()->year }}</strong>
                                 </p>
 
                                 <div style="height: 300px">
                                     <canvas id="sales-chart"
                                             role="img"
-                                            aria-label="Monthly sales chart"></canvas>
+                                            aria-label="Monthly income and expense chart"></canvas>
                                 </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <p class="text-center">
-                                    <strong>Goal Completion</strong>
-                                </p>
-
-                                @php
-                                    $goals = [
-                                        ['label' => 'Add Products to Cart', 'done' => 160, 'total' => 200, 'color' => 'primary'],
-                                        ['label' => 'Complete Purchase', 'done' => 310, 'total' => 400, 'color' => 'danger'],
-                                        ['label' => 'Visit Premium Page', 'done' => 480, 'total' => 800, 'color' => 'success'],
-                                        ['label' => 'Send Inquiries', 'done' => 250, 'total' => 500, 'color' => 'warning'],
-                                    ];
-                                @endphp
-
-                                @foreach ($goals as $goal)
-                                    <div class="progress-group mb-4">
-                                        {{ $goal['label'] }}
-
-                                        <span class="float-end">
-                                            <b>{{ $goal['done'] }}</b>/{{ $goal['total'] }}
-                                        </span>
-
-                                        <div class="progress progress-sm">
-                                            <div
-                                                class="progress-bar text-bg-{{ $goal['color'] }}"
-                                                style="width: {{ ($goal['done'] / $goal['total']) * 100 }}%">
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
                             </div>
 
                         </div>
                     </div>
 
-                    {{-- Revenue Summary --}}
+                    {{-- Financial Summary --}}
                     <div class="card-footer bg-body">
                         <div class="row text-center">
 
+                            {{-- Total Revenue --}}
                             <div class="col-6 col-md-3 mb-3">
-                                <span class="text-success">
-                                    <i class="bi bi-caret-up-fill"></i> 17%
-                                </span>
-                                <h5 class="fw-bold mb-0">$35,210.43</h5>
+                                @php
+                                    $revenueGrowth = $financialSummary['revenue_growth'];
+                                @endphp
+
+                                @if ($revenueGrowth !== null)
+                                    <span class="{{ $revenueGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                        <i class="bi {{ $revenueGrowth >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill' }}"></i>
+                                        {{ abs($revenueGrowth) }}%
+                                    </span>
+                                @endif
+
+                                <h5 class="fw-bold mb-0">
+                                    ৳{{ number_format($financialSummary['revenue'], 2) }}
+                                </h5>
                                 <small>TOTAL REVENUE</small>
                             </div>
 
+                            {{-- Total Cost --}}
                             <div class="col-6 col-md-3 mb-3">
-                                <span class="text-secondary">0%</span>
-                                <h5 class="fw-bold mb-0">$10,390.90</h5>
+                                @php
+                                    $expenseGrowth = $financialSummary['expense_growth'];
+                                @endphp
+
+                                @if ($expenseGrowth !== null)
+                                    <span class="{{ $expenseGrowth <= 0 ? 'text-success' : 'text-danger' }}">
+                                        <i class="bi {{ $expenseGrowth >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill' }}"></i>
+                                        {{ abs($expenseGrowth) }}%
+                                    </span>
+                                @endif
+
+                                <h5 class="fw-bold mb-0">
+                                    ৳{{ number_format($financialSummary['expense'], 2) }}
+                                </h5>
                                 <small>TOTAL COST</small>
                             </div>
 
+                            {{-- Total Profit --}}
                             <div class="col-6 col-md-3 mb-3">
-                                <span class="text-success">
-                                    <i class="bi bi-caret-up-fill"></i> 20%
-                                </span>
-                                <h5 class="fw-bold mb-0">$24,813.53</h5>
+                                @php
+                                    $profitGrowth = $financialSummary['profit_growth'];
+                                @endphp
+
+                                @if ($profitGrowth !== null)
+                                    <span class="{{ $profitGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                        <i class="bi {{ $profitGrowth >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill' }}"></i>
+                                        {{ abs($profitGrowth) }}%
+                                    </span>
+                                @endif
+
+                                <h5 class="fw-bold mb-0">
+                                    ৳{{ number_format($financialSummary['profit'], 2) }}
+                                </h5>
                                 <small>TOTAL PROFIT</small>
                             </div>
 
+                            {{-- Total Transactions --}}
                             <div class="col-6 col-md-3 mb-3">
-                                <span class="text-danger">
-                                    <i class="bi bi-caret-down-fill"></i> 18%
-                                </span>
-                                <h5 class="fw-bold mb-0">1,200</h5>
-                                <small>GOAL COMPLETIONS</small>
+                                @php
+                                    $transactionGrowth = $financialSummary['transaction_growth'];
+                                @endphp
+
+                                @if ($transactionGrowth !== null)
+                                    <span class="{{ $transactionGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                        <i class="bi {{ $transactionGrowth >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill' }}"></i>
+                                        {{ abs($transactionGrowth) }}%
+                                    </span>
+                                @endif
+
+                                <h5 class="fw-bold mb-0">
+                                    {{ number_format($financialSummary['transactions']) }}
+                                </h5>
+                                <small>TOTAL TRANSACTIONS</small>
                             </div>
 
                         </div>
@@ -265,196 +528,522 @@
                 </div>
             </div>
         </div>
+    @endif
 
-        {{-- Orders and Browser Chart --}}
-        <div class="row">
 
-            <div class="col-lg-8">
-                <div class="card mb-4">
+    <div class="row">
 
-                    <div class="card-header">
-                        <h3 class="card-title">Latest Orders</h3>
+        {{-- =====================================================
+            RECENT INVOICE HISTORY
+        ===================================================== --}}
+        @if($canViewInvoices)
+            <div class="col-lg-6 mb-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-semibold">
+                            Recent Invoice History
+                        </h5>
+
+                        @if(Route::has('invoices.index'))
+                            <a href="{{ route('invoices.index') }}"
+                            class="btn btn-sm btn-outline-primary">
+                                View All
+                                <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        @endif
+                    </div>
+
+                    <div class="card-body p-0">
+                        @if($recentInvoices->isNotEmpty())
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="ps-3">Invoice</th>
+                                            @if($canViewAllInvoices)
+                                                <th>Member</th>
+                                            @endif
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        @foreach($recentInvoices as $invoice)
+                                            @php
+                                                $status = strtolower($invoice->status ?? '');
+
+                                                $statusClass = match ($status) {
+                                                    'paid' => 'success',
+                                                    'pending' => 'warning',
+                                                    'processing' => 'info',
+                                                    'overdue', 'cancelled', 'rejected' => 'danger',
+                                                    default => 'secondary',
+                                                };
+                                            @endphp
+
+                                            <tr>
+                                                <td class="ps-3 fw-semibold">
+                                                    {{ $invoice->invoice_number ?? '#'.$invoice->id }}
+                                                </td>
+
+                                                @if($canViewAllInvoices)
+                                                    <td>
+                                                        {{ $invoice->user?->full_name ?? 'N/A' }}
+                                                    </td>
+                                                @endif
+
+                                                <td class="fw-semibold text-nowrap">
+                                                    ৳{{ number_format((float) $invoice->amount, 2) }}
+                                                </td>
+
+                                                <td>
+                                                    <span class="badge bg-{{ $statusClass }}">
+                                                        {{ ucfirst($invoice->status ?? 'Unknown') }}
+                                                    </span>
+                                                </td>
+
+                                                <td class="text-nowrap">
+                                                    {{ $invoice->created_at?->format('d M Y') ?? 'N/A' }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="text-center py-4">
+                                <i class="bi bi-receipt text-muted fs-1"></i>
+                                <p class="text-muted mb-0 mt-2">
+                                    No invoice history found.
+                                </p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- =====================================================
+            RECENT ORDERS
+        ===================================================== --}}
+        @if($canViewOrders)
+            <div class="col-lg-6 mb-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header border-0 pt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-semibold">
+                                Recent Orders
+                            </h5>
+
+                            @if($canViewAllOrders)
+                                <a href="{{ route('orders.index') }}"
+                                class="btn btn-sm btn-outline-primary">
+                                    View All
+                                </a>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover m-0">
+                            <table class="table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Order ID</th>
-                                        <th>Item</th>
+                                        <th class="ps-3">Order</th>
+                                        @if($canViewAllOrders)
+                                            <th>Member</th>
+                                        @endif
+                                        <th>Amount</th>
                                         <th>Status</th>
-                                        <th>Price</th>
+                                        <th>Date</th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
-                                    @php
-                                        $orders = [
-                                            ['id' => 'OR9842', 'item' => 'Call of Duty IV', 'status' => 'Shipped', 'color' => 'success', 'price' => '$120'],
-                                            ['id' => 'OR1848', 'item' => 'Samsung Smart TV', 'status' => 'Pending', 'color' => 'warning', 'price' => '$850'],
-                                            ['id' => 'OR7429', 'item' => 'iPhone 6 Plus', 'status' => 'Delivered', 'color' => 'danger', 'price' => '$450'],
-                                            ['id' => 'OR7428', 'item' => 'Samsung Smart TV', 'status' => 'Processing', 'color' => 'info', 'price' => '$700'],
-                                        ];
-                                    @endphp
+                                    @forelse($recentOrders as $order)
+                                        @php
+                                            $orderStatus = strtolower((string) $order->order_status);
 
-                                    @foreach ($orders as $order)
+                                            $orderBadge = match ($orderStatus) {
+                                                'completed', 'delivered' => 'success',
+                                                'pending' => 'warning',
+                                                'cancelled', 'rejected' => 'danger',
+                                                'processing', 'shipped' => 'info',
+                                                default => 'secondary',
+                                            };
+                                        @endphp
+
                                         <tr>
-                                            <td>{{ $order['id'] }}</td>
-                                            <td>{{ $order['item'] }}</td>
+                                            <td class="ps-3 fw-semibold">
+                                                {{ $order->order_number ?: '#'.$order->id }}
+                                            </td>
+
+                                            @if($canViewAllOrders)
+                                                <td>
+                                                    {{ $order->user?->full_name ?? 'N/A' }}
+                                                </td>
+                                            @endif
+
+                                            <td class="text-nowrap">
+                                                ৳{{ number_format((float) $order->total_amount, 2) }}
+                                            </td>
+
                                             <td>
-                                                <span class="badge text-bg-{{ $order['color'] }}">
-                                                    {{ $order['status'] }}
+                                                <span class="badge bg-{{ $orderBadge }}">
+                                                    {{ ucfirst(str_replace('_', ' ', $orderStatus ?: 'N/A')) }}
                                                 </span>
                                             </td>
-                                            <td>{{ $order['price'] }}</td>
+
+                                            <td class="text-nowrap">
+                                                {{ $order->created_at?->format('d M Y') ?? 'N/A' }}
+                                            </td>
                                         </tr>
-                                    @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="{{ $canViewAllOrders ? 5 : 4 }}"
+                                                class="text-center text-muted py-4">
+                                                No orders found.
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
-
-                    <div class="card-footer clearfix">
-                        <a href="{{ url('/orders/create') }}"
-                           class="btn btn-sm btn-primary">
-                            Place New Order
-                        </a>
-
-                        <a href="{{ url('/orders') }}"
-                           class="btn btn-sm btn-secondary float-end">
-                            View All Orders
-                        </a>
-                    </div>
-
                 </div>
             </div>
+        @endif
 
-            {{-- Browser Usage --}}
-            <div class="col-lg-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h3 class="card-title">Browser Usage</h3>
-                    </div>
-
-                    <div class="card-body">
-                        <div style="height: 280px">
-                            <canvas id="pie-chart"
-                                    role="img"
-                                    aria-label="Browser usage chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Additional Info Boxes --}}
-                <div class="info-box text-bg-warning mb-3">
-                    <span class="info-box-icon">
-                        <i class="bi bi-tag-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Inventory</span>
-                        <span class="info-box-number">5,200</span>
-                    </div>
-                </div>
-
-                <div class="info-box text-bg-success mb-3">
-                    <span class="info-box-icon">
-                        <i class="bi bi-heart-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Mentions</span>
-                        <span class="info-box-number">92,050</span>
-                    </div>
-                </div>
-
-                <div class="info-box text-bg-info mb-3">
-                    <span class="info-box-icon">
-                        <i class="bi bi-chat-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Direct Messages</span>
-                        <span class="info-box-number">163,921</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
     </div>
-</div>
 
+    {{-- =====================================================
+        LATEST TRANSACTIONS
+    ====================================================== --}}
+    @if ($canViewTransactions)
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header border-0 pt-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Latest Transactions</h5>
+
+                    @if ($canViewAllTransactions)
+                        <a href="{{ route('admin.finance.transactions.index') }}"
+                           class="btn btn-sm btn-outline-primary">
+                            View All
+                        </a>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead >
+                            <tr>
+                                <th class="ps-3">Transaction ID</th>
+
+                                @if ($canViewAllTransactions)
+                                    <th>Member</th>
+                                @endif
+
+                                <th>Category</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @forelse ($latestTransactions as $transaction)
+                                @php
+                                    $transactionStatus = strtolower((string) $transaction->status);
+
+                                    $transactionBadge = match ($transactionStatus) {
+                                        'approved' => 'success',
+                                        'pending' => 'warning',
+                                        'processing' => 'info',
+                                        'rejected', 'cancelled', 'expired' => 'danger',
+                                        default => 'secondary',
+                                    };
+
+                                    $transactionType = $transaction->category?->type
+                                        ?? ($transaction->invoice_item_id ? 'income' : 'expense');
+
+                                    $typeBadge = $transactionType === 'income'
+                                        ? 'success'
+                                        : 'danger';
+                                @endphp
+
+                                <tr>
+                                    <td class="ps-3">
+                                        <strong>
+                                            {{ $transaction->trx_id ?: '#'.$transaction->getKey() }}
+                                        </strong>
+                                    </td>
+
+                                    @if ($canViewAllTransactions)
+                                        <td>
+                                            <div class="fw-semibold">
+                                                {{ $transaction->user?->full_name ?? 'N/A' }}
+                                            </div>
+
+                                            @if ($transaction->user?->membership_number)
+                                                <small class="text-muted">
+                                                    {{ $transaction->user->membership_number }}
+                                                </small>
+                                            @endif
+                                        </td>
+                                    @endif
+
+                                    <td>
+                                        {{ $transaction->category?->name
+                                            ?? ($transaction->invoice_id ? 'Invoice Payment' : 'Other') }}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-{{ $typeBadge }}">
+                                            {{ ucfirst($transactionType) }}
+                                        </span>
+                                    </td>
+
+                                    <td class="fw-semibold">
+                                        ৳{{ number_format((float) $transaction->amount, 2) }}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-{{ $transactionBadge }}">
+                                            {{ ucfirst($transactionStatus) }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {{ $transaction->created_at?->format('d M Y') ?? 'N/A' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ $canViewAllTransactions ? 7 : 6 }}"
+                                        class="text-center text-muted py-4">
+                                        No transactions found.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- =====================================================
+        RECENT MEMBERS
+    ====================================================== --}}
+    {{-- @if ($canViewUsers)
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header border-0 pt-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recently Added Members</h5>
+
+                    <a href="{{ route('users.index') }}"
+                       class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead >
+                            <tr>
+                                <th class="ps-3">Member</th>
+                                <th>Membership Number</th>
+                                <th>Mobile</th>
+                                <th>Approval</th>
+                                <th>Member Status</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @forelse ($recentUsers as $member)
+                                @php
+                                    $approvalBadge = match ($member->approval_status) {
+                                        'approved' => 'success',
+                                        'pending' => 'warning',
+                                        'rejected' => 'danger',
+                                        default => 'secondary',
+                                    };
+
+                                    $memberBadge = match ($member->member_status) {
+                                        'active', 'life_member' => 'success',
+                                        'inactive' => 'warning',
+                                        'suspended', 'deceased' => 'danger',
+                                        'apprentice', 'lawyer_assistant' => 'info',
+                                        default => 'secondary',
+                                    };
+                                @endphp
+
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-semibold">
+                                            {{ $member->full_name }}
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ $member->email ?? 'No email' }}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        {{ $member->membership_number ?? 'N/A' }}
+                                    </td>
+
+                                    <td>
+                                        {{ $member->mobile ?? 'N/A' }}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-{{ $approvalBadge }}">
+                                            {{ ucfirst($member->approval_status ?? 'N/A') }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-{{ $memberBadge }}">
+                                            {{ ucfirst(str_replace('_', ' ', $member->member_status ?? 'N/A')) }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {{ $member->created_at?->format('d M Y') ?? 'N/A' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No members found.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif --}}
+
+    {{-- =====================================================
+        EMPTY DASHBOARD
+    ====================================================== --}}
+    @if (
+        ! $canViewUsers &&
+        ! $canApproveUsers &&
+        ! $canChangeMemberStatus &&
+        ! $canViewOrders &&
+        ! $canViewInvoices &&
+        ! $canViewTransactions &&
+        ! $canViewFinancialChart &&
+        ! $canVerifyTransactions
+    )
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-shield-lock text-muted display-4"></i>
+
+                <h5 class="mt-3">Dashboard Access Restricted</h5>
+
+                <p class="text-muted mb-0">
+                    You do not currently have permission to view dashboard information.
+                    Please contact the system administrator.
+                </p>
+            </div>
+        </div>
+    @endif
+
+</div>
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // Monthly Sales Chart
+    // Monthly Income & Expense Chart
     const salesCanvas = document.getElementById('sales-chart');
 
     if (salesCanvas) {
+        const financialChart = @json($financialChart);
+
         new Chart(salesCanvas, {
             type: 'line',
+
             data: {
-                labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+                labels: financialChart.labels,
+
                 datasets: [
                     {
-                        label: 'Digital Goods',
-                        data: [28, 48, 40, 19, 86, 27, 90],
-                        borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13, 110, 253, 0.15)',
-                        fill: true,
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Electronics',
-                        data: [65, 59, 80, 81, 56, 55, 40],
+                        label: 'Income',
+                        data: financialChart.income,
                         borderColor: '#20c997',
                         backgroundColor: 'rgba(32, 201, 151, 0.15)',
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Expense',
+                        data: financialChart.expense,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.15)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
                     }
                 ]
             },
+
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+
                 interaction: {
                     mode: 'index',
                     intersect: false
                 },
+
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return context.dataset.label + ': ৳' +
+                                    Number(context.parsed.y).toLocaleString('en-BD', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                            }
+                        }
+                    }
+                },
+
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return '৳' + Number(value).toLocaleString('en-BD');
+                            }
+                        }
                     }
                 }
-            }
-        });
-    }
-
-    // Browser Usage Chart
-    const browserCanvas = document.getElementById('pie-chart');
-
-    if (browserCanvas) {
-        new Chart(browserCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: ['Chrome', 'Edge', 'Firefox', 'Safari', 'Opera', 'IE'],
-                datasets: [{
-                    data: [700, 500, 400, 600, 300, 100],
-                    backgroundColor: [
-                        '#0d6efd',
-                        '#20c997',
-                        '#ffc107',
-                        '#d63384',
-                        '#6f42c1',
-                        '#adb5bd'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '65%'
             }
         });
     }

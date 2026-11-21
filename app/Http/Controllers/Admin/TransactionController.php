@@ -380,12 +380,12 @@ class TransactionController extends Controller
                 'payment_gateway_id' => $validated['payment_gateway_id'] ?? null,
 
                 // Internal unique reference for manual accounting entries.
-                'trx_id' => 'MAN-' . Str::upper((string) Str::uuid()),
+                'trx_id' => 'KDBA-' . Str::upper(Str::random(8)),
 
                 'category_id' => $category->id,
                 'sender_mobile' => null,
                 'amount' => $validated['amount'],
-                'description' => $validated['description'],
+                // 'description' => $validated['description'],
 
                 // Manual financial entries are recorded as approved.
                 'status' => 'approved',

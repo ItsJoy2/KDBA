@@ -98,6 +98,8 @@ class DefaultPermissionsSeeder extends Seeder
 
             'invoices' => [
                 'view',
+                'view_own',
+                'view_all',
                 'create',
                 'pay',
             ],
@@ -217,6 +219,15 @@ class DefaultPermissionsSeeder extends Seeder
             'transactions.verify' => [
                 'name' => 'Verify Transactions',
                 'description' => 'Verify or reject financial transactions.',
+            ],
+            'invoices.view_own' => [
+                'name' => 'View Own Invoices',
+                'description' => 'View only invoices belonging to the authenticated user.',
+            ],
+
+            'invoices.view_all' => [
+                'name' => 'View All Invoices',
+                'description' => 'View invoices across all members.',
             ],
         ];
 

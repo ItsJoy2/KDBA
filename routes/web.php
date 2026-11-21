@@ -241,7 +241,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::post('/invoices/{invoice}/pay', 'pay')->name('invoices.pay');
     });
 
-    Route::middleware(['auth', 'permission:transactions.view_own'])->prefix('member')->name('member.')->group(function () {
+    Route::middleware(['permission:transactions.view_own'])->prefix('member')->name('member.')->group(function () {
         Route::get('/transactions', [TransactionController::class,'index',])->name('transactions.index');
     });
 

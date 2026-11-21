@@ -99,22 +99,21 @@
         <div class="row g-4">
 
             {{-- Selling Price --}}
-            {{-- <div class="col-md-4"> --}}
-                {{-- <label for="selling_price" class="form-label fw-medium">
+            <div class="col-md-4">
+                <label for="selling_price" class="form-label fw-medium">
                     Selling Price <span class="text-danger">*</span>
-                </label> --}}
+                </label>
 
-                {{-- <div class="input-group">
-                    <span class="input-group-text">৳</span> --}}
+                <div class="input-group">
+                    <span class="input-group-text">৳</span>
 
                     <input type="number" id="selling_price" name="selling_price"
                            step="0.01" min="0"
                            class="form-control @error('selling_price') is-invalid @enderror"
-                           hidden
                            value="{{ old('selling_price', $product->selling_price ?? '0.00') }}">
 
-                {{-- </div> --}}
-            {{-- </div> --}}
+                </div>
+            </div>
 
             {{-- Stock Type --}}
             <div class="col-md-4">
