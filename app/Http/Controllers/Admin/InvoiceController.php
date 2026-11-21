@@ -12,6 +12,10 @@ use App\Services\Membership\MembershipFeeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Mpdf\Config\ConfigVariables;
+use Mpdf\Config\FontVariables;
+use Mpdf\Mpdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -200,5 +204,87 @@ class InvoiceController extends Controller
             'success',
             'Payment submitted successfully. Please wait for verification.'
         );
+    }
+
+
+
+    public function print(Invoice $invoice)
+    {
+        $invoice->load([
+            'user:id,full_name,membership_number,mobile,email',
+            'items:id,invoice_id,fee_key,title,description,unit_amount,quantity,amount',
+        ]);
+
+        $fontPath = public_path('assets/fonts');
+
+        $fontFile = $fontPath . '/SolaimanLipi.ttf';
+
+        abort_unless(
+            File::exists($fontFile),
+            500,
+            'SolaimanLipi font file not found.'
+        );
+
+        // Prepare mPDF temporary directory.
+        $tempPath = storage_path('app/mpdf-temp');
+
+        File::ensureDirectoryExists($tempPath);
+
+        // Load default mPDF fonts.
+        $defaultConfig = (new ConfigVariables())->getDefaults();
+        $fontDirs = $defaultConfig['fontDir'];
+
+        $defaultFontConfig = (new FontVariables())->getDefaults();
+        $fontData = $defaultFontConfig['fontdata'];
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+
+            // A5 Portrait
+            'format' => 'A5',
+            'orientation' => 'P',
+
+            'fontDir' => array_merge($fontDirs, [
+                $fontPath,
+            ]),
+
+            'fontdata' => $fontData + [
+                'solaimanlipi' => [
+                    'R'  => 'SolaimanLipi.ttf',
+                    'B'  => 'SolaimanLipi.ttf',
+                    'I'  => 'SolaimanLipi.ttf',
+                    'BI' => 'SolaimanLipi.ttf',
+                    'useOTL' => 0xFF,
+                ],
+            ],
+
+            'default_font' => 'solaimanlipi',
+
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+
+            'margin_left' => 10,
+            'margin_right' => 10,
+            'margin_top' => 10,
+            'margin_bottom' => 10,
+
+            'tempDir' => $tempPath,
+        ]);
+
+        $html = view('admin.invoices.print', compact('invoice'))->render();
+
+        $mpdf->WriteHTML($html);
+
+        $filename = $invoice->invoice_number . '.pdf';
+
+        $pdf = $mpdf->Output(
+            $filename,
+            \Mpdf\Output\Destination::STRING_RETURN
+        );
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
     }
 }

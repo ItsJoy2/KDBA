@@ -134,6 +134,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::get('/{order}', 'show')->whereNumber('order')->middleware('permission:orders.view')->name('show');
         Route::patch('/{order}/status', 'updateStatus')->whereNumber('order')->middleware('permission:orders.status_update')->name('update-status');
         Route::post('/{order}/payment', [OrderController::class, 'submitPayment'])->middleware('auth')->name('payment');
+        Route::get('/{order}/print', [OrderController::class, 'printInvoice'])->name('print');
         
         Route::get('/search', [OrderController::class, 'searchSuggestions'])->name('search'); 
 
@@ -210,6 +211,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::prefix('invoices')->name('invoices.')->controller(InvoiceController::class)->group(function () {
             Route::get('/', 'index')->middleware('permission:invoices.view')->name('index');
             Route::post('/', 'store')->middleware('permission:invoices.create')->name('store');
+            Route::get('/{invoice}/print', [InvoiceController::class,'print',])->middleware('permission:invoices.view')->name('print');
         });
 
         Route::prefix('transactions')->name('transactions.')->controller(AdminTransactionController::class)->group(function () {

@@ -238,7 +238,7 @@
                                                             {{-- Admin Payment --}}
                                                             <button
                                                                 type="button"
-                                                                class="btn btn-sm btn-primary"
+                                                                class="btn btn-sm btn-warning"
                                                                 data-bs-toggle="modal"
                                                                 data-bs-target="#orderPaymentModal"
                                                                 data-order-id="{{ $order->id }}"
@@ -247,10 +247,16 @@
                                                                 data-payment-type="admin"
                                                             >
                                                                 <i class="bi bi-cash-stack me-1"></i>
-                                                                Receive Payment
                                                             </button>
                                                         @endif
                                                     @endif
+
+                                                        <a href="{{ route('orders.print', $order) }}"
+                                                        target="_blank"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Print Invoice">
+                                                            <i class="bi bi-file-earmark-pdf"></i>
+                                                        </a>
 
                                                     </div>
                                                 </td>

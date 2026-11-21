@@ -28,7 +28,7 @@
                   action="{{ route('admin.invoices.index') }}"
                   class="row g-2">
 
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <input
                         type="text"
                         name="search"
@@ -58,15 +58,14 @@
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle mb-0">
+                <table class="table table-hover align-middle m-0">
 
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th width="55">#</th>
                             <th>Invoice Number</th>
                             <th>Member</th>
                             <th>Type</th>
-                            <th>Cycle</th>
                             <th>Amount</th>
                             <th>Due Date</th>
                             <th>Status</th>
@@ -91,13 +90,6 @@
                                     <div>
                                         {{ $invoice->user->full_name ?? 'N/A' }}
                                     </div>
-
-                                    <small class="text-muted">
-                                        {{ $invoice->user->membership_number ?? '' }}
-                                    </small>
-
-                                    <br>
-
                                     <small class="text-muted">
                                         {{ $invoice->user->email ?? '' }}
                                     </small>
@@ -105,10 +97,6 @@
 
                                 <td>
                                     {{ str($invoice->invoice_type)->replace('_', ' ')->title() }}
-                                </td>
-
-                                <td>
-                                    {{ $invoice->cycle_key ?? '—' }}
                                 </td>
 
                                 <td>
@@ -152,7 +140,7 @@
                                             <i class="bi bi-eye"></i>
                                         </button>
 
-                                        @if(in_array($invoice->status, ['pending', 'overdue'], true))
+                                        {{-- @if(in_array($invoice->status, ['pending', 'overdue'], true))
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-success js-open-invoice-payment"
                                                     data-invoice-id="{{ $invoice->id }}"
@@ -163,14 +151,22 @@
 
                                                 <i class="bi bi-cash-coin"></i>
                                             </button>
-                                        @endif
+                                        @endif --}}
+
+                                        <a href="{{ route('admin.invoices.print', $invoice->id) }}"
+                                            target="_blank"
+                                            class="btn btn-sm btn-outline-danger"
+                                            title="Print Invoice">
+
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </a>
 
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">
+                                <td colspan="8" class="text-center py-4 text-muted">
                                     No invoices found.
                                 </td>
                             </tr>

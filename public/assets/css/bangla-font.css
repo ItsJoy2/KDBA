@@ -1,0 +1,75 @@
+
+@font-face {
+    font-family: 'SolaimanLipi';
+    src: url('../fonts/SolaimanLipi.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Global Bangla Font
+|--------------------------------------------------------------------------
+*/
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+optgroup {
+    font-family: 'SolaimanLipi', sans-serif;
+}
+
+/* Headings and common text elements */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+a,
+label,
+td,
+th,
+li,
+small,
+strong,
+.form-label,
+.form-control,
+.form-select,
+.btn {
+    font-family: 'SolaimanLipi', sans-serif;
+}
+
+/* Preserve icon fonts */
+.fa,
+.fas,
+.far,
+.fab,
+[class^="fa-"],
+[class*=" fa-"],
+.bi,
+[class^="bi-"],
+[class*=" bi-"] {
+    font-family: inherit;
+}
+
+.fa,
+.fas,
+.far,
+.fab {
+    font-family: "Font Awesome 5 Free";
+}
+
+.fab {
+    font-family: "Font Awesome 5 Brands";
+}
+
+.bi {
+    font-family: "bootstrap-icons";
+}

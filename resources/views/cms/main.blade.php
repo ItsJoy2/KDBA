@@ -47,6 +47,9 @@
     {{-- Custom CSS --}}
     <link rel="stylesheet" href="{{ asset('assets/css/cms.css') }}">
 
+
+    <link rel="stylesheet" href="{{ asset('assets/css/bangla-font.css') }}">
+
     @stack('styles')
 </head>
 

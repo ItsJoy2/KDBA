@@ -3,25 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\SubmitOrderPaymentRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Models\Order;
-use App\Models\Product;
-use App\Models\User;
-use App\Services\OrderService;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
-use App\Http\Requests\SubmitOrderPaymentRequest;
 use App\Models\PaymentGateway;
+use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
+use App\Models\User;
 use App\Services\Finance\FinancialTransactionService;
+use App\Services\OrderService;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Database\QueryException;
+use Illuminate\View\View;
+use Mpdf\Config\ConfigVariables;
+use Mpdf\Config\FontVariables;
+use Mpdf\Mpdf;
 use Throwable;
 
 class OrderController extends Controller
@@ -447,4 +450,76 @@ class OrderController extends Controller
         }
     }
 
+    public function printInvoice(Request $request, Order $order)
+    {
+        $user = $request->user();
+
+        $isOwnOrder = (int) $order->user_id === (int) $user->id;
+
+        abort_unless(
+            ($isOwnOrder && $user->hasPermission('orders.view_own'))
+            || $user->hasPermission('orders.view_all'),
+            403,
+            'You are not authorized to print this order invoice.'
+        );
+
+        $order->load([
+            'user:id,full_name,mobile,email,membership_number',
+            'purchaser:id,full_name',
+            'items.product:id,name',
+            'serials',
+        ]);
+
+        $fontPath = public_path('assets/fonts');
+
+        $defaultConfig = (new ConfigVariables())->getDefaults();
+        $fontDirs = $defaultConfig['fontDir'];
+
+        $defaultFontConfig = (new FontVariables())->getDefaults();
+        $fontData = $defaultFontConfig['fontdata'];
+
+        $tempPath = storage_path('app/mpdf-temp');
+
+        if (! is_dir($tempPath)) {
+            mkdir($tempPath, 0755, true);
+        }
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A5',
+            'orientation' => 'P',
+
+            'fontDir' => array_merge($fontDirs, [$fontPath]),
+
+            'fontdata' => $fontData + [
+                'solaimanlipi' => [
+                    'R' => 'SolaimanLipi.ttf',
+                    'useOTL' => 0xFF,
+                ],
+            ],
+
+            'default_font' => 'solaimanlipi',
+
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+
+            'tempDir' => $tempPath,
+        ]);
+
+        $html = view('orders.invoice', compact('order'))->render();
+
+        $mpdf->WriteHTML($html);
+
+        return response(
+            $mpdf->Output(
+                'Order-' . $order->order_number . '.pdf',
+                'S'
+            )
+        )
+            ->header('Content-Type', 'application/pdf')
+            ->header(
+                'Content-Disposition',
+                'inline; filename="Order-' . $order->order_number . '.pdf"'
+            );
+    }
 }

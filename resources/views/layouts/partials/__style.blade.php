@@ -21,3 +21,4 @@
 <link rel="preload" href="{{ asset('assets/css/adminlte.css') }}" as="style">
 <link rel="stylesheet" href="{{ asset('assets/css/adminlte.css') }}">
 <link rel="stylesheet" href="{{ asset('assets/css/admin-theme.css') }}"> 
+<link rel="stylesheet" href="{{ asset('assets/css/bangla-font.css') }}">

@@ -352,7 +352,7 @@
                                                         @endif
 
                                                         {{-- Record Payment --}}
-                                                        @if (
+                                                        {{-- @if (
                                                             auth()->user()->hasPermission('transactions.create')
                                                             && $member->member_status === 'member'
                                                         )
@@ -365,7 +365,7 @@
                                                                 aria-label="Record payment for {{ $member->full_name }}">
                                                                 <i class="bi bi-cash-coin"></i>
                                                             </button>
-                                                        @endif
+                                                        @endif --}}
 
                                                     </div>
                                                 </td>
