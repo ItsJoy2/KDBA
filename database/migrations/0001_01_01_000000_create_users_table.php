@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-
+            $table->string('ppt', 64)->nullable()->unique();
             // Basic Information
             $table->string('full_name', 150);
             $table->string('email', 254)->nullable()->unique();
