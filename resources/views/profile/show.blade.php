@@ -141,6 +141,58 @@
                         </div>
                     </div>
 
+                    {{-- Member QR / ID Card (super-admin dekhbe na) --}}
+                    @php
+                        $isSuperAdmin = $user->roles()->where('slug', 'super-admin')->exists();
+                    @endphp
+
+                    @if (! $isSuperAdmin && $user->ppt)
+                        <div class="card border-0 shadow-sm rounded-4 mt-4">
+                            <div class="card-body text-center">
+                                <h6 class="fw-bold mb-3">
+                                    <i class="bi bi-qr-code me-2"></i>My Member QR
+                                </h6>
+
+                                <div class="d-inline-block bg-white p-2 border rounded-3">
+                                    {!! $user->qrSvg(180) !!}
+                                </div>
+
+                                <p class="text-secondary small mt-2 mb-3">
+                                    Scan to view your member ID card.
+                                </p>
+
+                                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                    <a href="{{ $user->publicCardUrl() }}" target="_blank" rel="noopener"
+                                    class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-person-vcard me-1"></i>Open ID card
+                                    </a>
+
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-primary dropdown-toggle" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-download me-1"></i>Download
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item"
+                                                href="{{ $user->publicCardUrl() }}?download=jpg"
+                                                target="_blank" rel="noopener">
+                                                    JPG
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item"
+                                                href="{{ route('member.card.pdf', $user->ppt) }}">
+                                                    PDF
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Account Security --}}
                     <div class="card border-0 shadow-sm rounded-4 mt-4">
                         <div class="card-body">
@@ -296,7 +348,7 @@
                     {{-- NID / Passport Images --}}
                     <div class="card border-0 shadow-sm rounded-4 mt-4">
 
-                        <div class="card-header bg-white border-0 p-4">
+                        <div class="card-header border-0 p-4">
                             <h5 class="fw-bold mb-1">Identity Documents</h5>
 
                             <p class="text-secondary small mb-0">

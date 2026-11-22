@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Mpdf\Mpdf;
 use RuntimeException;
 use Throwable;
 
@@ -1154,5 +1155,103 @@ class UserController extends Controller
         ]);
     }
 
+    public function memberCardShow(string $ppt): View
+    {
+        
+        $member = User::query()
+            ->where('ppt', $ppt)
+            // ->where('approval_status', 'approved')
+            ->firstOrFail(['id', 'full_name', 'email', 'mobile', 'photo',
+                'membership_number', 'father_name', 'member_status', 'blood_group', 'dob',
+                'member_type', 'ppt']);
+
+        $disk = Storage::disk('local');
+        $photoUrl = null;
+
+        if ($member->photo && $disk->exists($member->photo)) {
+            $photoUrl = 'data:' . ($disk->mimeType($member->photo) ?: 'image/jpeg')
+                . ';base64,' . base64_encode($disk->get($member->photo));
+        }
+
+        return view('admin.users.member-card', compact('member', 'photoUrl'));
+    }
     
+    public function memberCardPdf(string $ppt)
+    {
+        $member = User::query()
+            ->where('ppt', $ppt)
+            ->where('approval_status', 'approved')
+            ->firstOrFail(['id', 'full_name', 'email', 'mobile', 'photo',
+            'membership_number', 'father_name', 'dob', 'blood_group',
+            'member_status', 'member_type', 'ppt']);
+
+        $disk = Storage::disk('local');
+        $photoUrl = null;
+
+        if ($member->photo && $disk->exists($member->photo)) {
+            $photoUrl = 'data:' . ($disk->mimeType($member->photo) ?: 'image/jpeg')
+                . ';base64,' . base64_encode($disk->get($member->photo));
+        }
+
+        $qrSvg = $member->qrSvg(160);
+        $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($qrSvg);
+
+        $html = view('admin.users.member-card-pdf', compact('member', 'photoUrl', 'qrDataUri'))->render();
+
+        $mpdf = new Mpdf([
+            'mode'          => 'utf-8',
+            'format'        => [90, 140],
+            'margin_left'   => 0,
+            'margin_right'  => 0,
+            'margin_top'    => 0,
+            'margin_bottom' => 0,
+            'tempDir'       => storage_path('app/mpdf'),
+        ]);
+
+        $mpdf->WriteHTML($html);
+
+        return response($mpdf->Output('', 'S'), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="member-card-' . $member->id . '.pdf"',
+        ]);
+    }
+
+    public function qrPdf(Request $request, User $user)
+    {
+        $actor = $request->user();
+
+        $member = $this->findManageableUser($actor, $user);
+
+        abort_unless(
+            $actor?->hasPermission('users.view')
+                || $actor?->roles()->where('slug', 'super-admin')->exists(),
+            403
+        );
+
+        abort_if(blank($member->ppt), 404);
+
+        $html = view('admin.users.qr-pdf', [
+            'member' => $member,
+            'url'    => $member->publicCardUrl(),
+        ])->render();
+
+        $mpdf = new Mpdf([
+            'mode'          => 'utf-8',
+            'format'        => [80, 100],
+            'margin_left'   => 5,
+            'margin_right'  => 5,
+            'margin_top'    => 8,
+            'margin_bottom' => 5,
+            'tempDir'       => storage_path('app/mpdf'),
+        ]);
+
+        $mpdf->WriteHTML($html);
+
+        $name = 'qr-' . ($member->membership_number ?: $member->id) . '.pdf';
+
+        return response($mpdf->Output('', 'S'), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $name . '"',
+        ]);
+    }
 }

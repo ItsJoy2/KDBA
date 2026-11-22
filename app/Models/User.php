@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -306,5 +307,19 @@ class User extends Authenticatable
                 $user->ppt = $token;
             }
         });
+    }
+
+    public function publicCardUrl(): string
+    {
+        return route('member.card', ['ppt' => $this->ppt]);
+    }
+
+    public function qrSvg(int $size = 180): string
+    {
+        return QrCode::format('svg')
+            ->size($size)
+            ->margin(1)
+            ->errorCorrection('M')
+            ->generate($this->publicCardUrl());
     }
 }

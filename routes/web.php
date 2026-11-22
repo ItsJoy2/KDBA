@@ -85,6 +85,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::post('/', 'store')->middleware('permission:users.create')->name('store');
 
         Route::get('/{user}/images/{type}', [UserController::class,'image',])->name('image');
+        Route::get('/{user}/qr-pdf', [UserController::class, 'qrPdf'])->name('qr.pdf');
 
         Route::get('/{user}', 'show')->whereNumber('user')->middleware('permission:users.view')->name('show');
         Route::get('/{user}/edit', 'edit')->whereNumber('user')->middleware('permission:users.edit')->name('edit');
@@ -247,4 +248,10 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::get('/transactions', [TransactionController::class,'index',])->name('transactions.index');
     });
 
+    Route::get('/id/{ppt}/pdf', [UserController::class, 'memberCardPdf'])->where('ppt', '[A-Za-z0-9]{32,64}')->middleware('throttle:30,1')->name('member.card.pdf');
+
 });
+
+
+
+Route::get('/id/{ppt}', [UserController::class, 'memberCardShow'])->where('ppt', '[A-Za-z0-9]{32,64}')->middleware('throttle:60,1')->name('member.card');

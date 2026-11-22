@@ -112,6 +112,42 @@
                                 <small class="text-muted d-block">Sanad number</small>
                                 <span>{{ $user->sanad_number ?: '—' }}</span>
                             </div> --}}
+
+
+                            @if($user->ppt)
+                                <div class="text-center">
+                                    <div id="qr-box-{{ $user->id }}" style="display:inline-block;background:#fff;padding:8px">
+                                        {!! $user->qrSvg(180) !!}
+                                    </div>
+
+                                    <div class="d-flex justify-content-center gap-2 mt-2 flex-wrap">
+                                        <a href="{{ $user->publicCardUrl() }}" target="_blank"
+                                        class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-person-vcard me-1"></i>Open ID card
+                                        </a>
+
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button"
+                                                    data-bs-toggle="dropdown">
+                                                <i class="bi bi-download me-1"></i>Download QR
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                    onclick="downloadQrJpg({{ $user->id }}, '{{ $user->membership_number ?: $user->id }}'); return false;">
+                                                        JPG
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('users.qr.pdf', $user) }}">
+                                                        PDF
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -311,3 +347,40 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function downloadQrJpg(userId, label) {
+    const svgEl = document.querySelector('#qr-box-' + userId + ' svg');
+    if (!svgEl) return;
+
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const size = 1000;
+    const pad = 60;
+
+    const img = new Image();
+    img.onload = function () {
+        const canvas = document.createElement('canvas');
+        canvas.width = size + pad * 2;
+        canvas.height = size + pad * 2;
+
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';          // JPG-te transparent hoy na, tai white background
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, pad, pad, size, size);
+
+        canvas.toBlob(function (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'qr-' + label + '.jpg';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, 'image/jpeg', 0.95);
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+}
+</script>
+@endpush
