@@ -10,7 +10,7 @@
     ====================================================== --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">Dashboard</h4>
+            <h4 class="mb-1 mt-4">Dashboard</h4>
             <p class="text-muted mb-0">
                 Welcome back, {{ auth()->user()->full_name ?? 'User' }}.
                 Here is your system overview.
@@ -330,9 +330,7 @@
         </div>
     @endif
 
-    {{-- =====================================================
-        PENDING PAYMENT VERIFICATION ALERT
-    ====================================================== --}}
+
     @if ($canVerifyTransactions && $pendingPaymentRequests > 0)
         <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center mb-4">
             <div>
@@ -341,11 +339,11 @@
                 payment transaction(s) are waiting for verification.
             </div>
 
-            {{-- <a href="{{ route('admin.transactions.index') }}"
+            <a href="{{ route('admin.payment-transactions.index') }}"
                class="btn btn-sm btn-warning mt-2 mt-md-0">
                 Review Payments
                 <i class="bi bi-arrow-right ms-1"></i>
-            </a> --}}
+            </a>
         </div>
     @endif
 
@@ -543,14 +541,6 @@
                         <h5 class="mb-0 fw-semibold">
                             Recent Invoice History
                         </h5>
-
-                        @if(Route::has('invoices.index'))
-                            <a href="{{ route('invoices.index') }}"
-                            class="btn btn-sm btn-outline-primary">
-                                View All
-                                <i class="bi bi-arrow-right ms-1"></i>
-                            </a>
-                        @endif
                     </div>
 
                     <div class="card-body p-0">

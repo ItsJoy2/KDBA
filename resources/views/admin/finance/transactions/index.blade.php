@@ -6,7 +6,7 @@
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h4 class="mb-0"><i class="bi bi-journal-text me-1"></i> Financial Transactions</h4>
+        <h4 class="mb-0"> Financial Transactions</h4>
 
         @if(auth()->user()->hasPermission('transactions.create'))
             <a href="{{ route('admin.transactions.manual.create') }}" class="btn btn-primary">
@@ -90,7 +90,6 @@
                             <th>Date</th>
                             <th>Reference</th>
                             <th>Category</th>
-                            <th>Description</th>
                             <th class="text-end">Amount</th>
                             <th>Status</th>
                             <th>Recorded By</th>
@@ -130,13 +129,6 @@
                                     @else
                                         <span class="text-muted">Uncategorized</span>
                                     @endif
-                                </td>
-
-                                <td>
-                                    {{ \Illuminate\Support\Str::limit(
-                                        $transaction->description ?? $transaction->invoice?->title ?? '—',
-                                        60
-                                    ) }}
                                 </td>
 
                                 <td class="text-end fw-semibold">

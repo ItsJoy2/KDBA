@@ -211,122 +211,179 @@ class OrderController extends Controller
         );
     }
 
-    public function searchSuggestions(Request $request): JsonResponse
-    {
-        $user = $request->user();
 
-        $type = $request->query('type', 'member');
-        $search = trim((string) $request->query('q', ''));
 
-        if ($type === 'member') {
-            abort_unless(
-                $user->hasPermission('products.buy_for_others'),
-                403
-            );
+public function searchSuggestions(Request $request): JsonResponse
+{
+    $user = $request->user();
 
-            if (mb_strlen($search) < 2) {
-                return response()->json([]);
-            }
+    $type = $request->query('type', 'member');
+    $search = trim((string) $request->query('q', ''));
 
-            return response()->json(
-                User::query()
-                    ->whereIn('status', ['Active', 'Life Member'])
-                    ->where(function ($query) use ($search) {
-                        $query->where('full_name', 'like', "%{$search}%")
-                            ->orWhere('mobile', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%")
-                            ->orWhere('membership_number', 'like', "%{$search}%");
-                    })
-                    ->orderBy('full_name')
-                    ->limit(10)
-                    ->get([
-                        'id',
-                        'full_name',
-                        'mobile',
-                        'email',
-                        'membership_number',
-                    ])
-            );
+    /*
+    |--------------------------------------------------------------------------
+    | Member Search
+    |--------------------------------------------------------------------------
+    */
+    if ($type === 'member') {
+        abort_unless(
+            $user->hasPermission('products.buy_for_others'),
+            403
+        );
+
+        if (mb_strlen($search) < 2) {
+            return response()->json([]);
         }
 
-        if ($type === 'product') {
-            abort_unless(
-                $user->hasPermission('products.buy'),
-                403
-            );
+        $members = User::query()
+            ->whereIn('status', ['Active', 'Life Member'])
+            ->where(function ($query) use ($search) {
+                $query->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('membership_number', 'like', "%{$search}%");
+            })
+            ->orderBy('full_name')
+            ->limit(10)
+            ->get([
+                'id',
+                'full_name',
+                'mobile',
+                'email',
+                'membership_number',
+            ]);
 
-            $availableProducts = function ($query) {
-                $query->where('status', 'active')
-                    ->where(function ($stockQuery) {
-                        $stockQuery->where('stock_type', 'unlimited')
-                            ->orWhere(function ($limitedQuery) {
-                                $limitedQuery->where('stock_type', 'limited')
-                                    ->where('stock_quantity', '>', 0);
-                            });
-                    });
-            };
-
-            // Restore previously selected products.
-            $ids = $request->query('ids', []);
-
-            if (is_array($ids) && count($ids) > 0) {
-                $ids = collect($ids)
-                    ->filter(fn ($id) => filter_var(
-                        $id,
-                        FILTER_VALIDATE_INT
-                    ) !== false)
-                    ->unique()
-                    ->values()
-                    ->all();
-
-                return response()->json(
-                    Product::query()
-                        ->whereIn('id', $ids)
-                        ->where($availableProducts)
-                        ->orderBy('name')
-                        ->get([
-                            'id',
-                            'name',
-                            'selling_price',
-                            'stock_type',
-                            'stock_quantity',
-                            'track_serials',
-                            'serial_start',
-                            'serial_end',
-                            'current_serial',
-                        ])
-                );
-            }
-
-            if (mb_strlen($search) < 2) {
-                return response()->json([]);
-            }
-
-            return response()->json(
-                Product::query()
-                    ->where($availableProducts)
-                    ->where('name', 'like', "%{$search}%")
-                    ->orderBy('name')
-                    ->limit(10)
-                    ->get([
-                        'id',
-                        'name',
-                        'selling_price',
-                        'stock_type',
-                        'stock_quantity',
-                        'track_serials',
-                        'serial_start',
-                        'serial_end',
-                        'current_serial',
-                    ])
-            );
-        }
-
-        return response()->json([
-            'message' => 'Invalid search type.',
-        ], 422);
+        return response()->json($members);
     }
-        
+
+    /*
+    |--------------------------------------------------------------------------
+    | Product Search
+    |--------------------------------------------------------------------------
+    */
+    if ($type === 'product') {
+        abort_unless(
+            $user->hasPermission('products.buy'),
+            403
+        );
+
+        $ids = $request->query('ids', []);
+
+        /*
+         * Restore previously selected products.
+         */
+        if (is_array($ids) && count($ids) > 0) {
+            $ids = collect($ids)
+                ->filter(fn ($id) => filter_var(
+                    $id,
+                    FILTER_VALIDATE_INT
+                ) !== false && (int) $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($ids)) {
+                return response()->json([]);
+            }
+
+            $products = Product::query()
+                ->whereIn('id', $ids)
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'name',
+                    'slug',
+                    'selling_price',
+                    'stock_type',
+                    'stock_quantity',
+                    'track_serials',
+                    'serial_start',
+                    'serial_end',
+                    'current_serial',
+                ]);
+
+            return response()->json($products);
+        }
+
+        if (mb_strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        // Normalize Bengali Unicode search.
+        $normalizedSearch = $this->normalizeSearch($search);
+
+        // Handle common Bengali spelling variations.
+        $searchVariants = [
+            $normalizedSearch,
+            str_replace('ড়', 'ড়', $normalizedSearch),
+            str_replace('ড়', 'ড়', $normalizedSearch),
+        ];
+
+        $searchVariants = array_unique($searchVariants);
+
+        $products = Product::query()
+            ->where('status', 'active')
+
+            // Stock availability.
+            ->where(function ($query) {
+                $query->where('stock_type', 'unlimited')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('stock_type', 'limited')
+                            ->where('stock_quantity', '>', 0);
+                    });
+            })
+
+            // Search product name and slug.
+            ->where(function ($query) use ($searchVariants) {
+                foreach ($searchVariants as $variant) {
+                    $query->orWhere('name', 'like', "%{$variant}%")
+                        ->orWhere('slug', 'like', "%{$variant}%");
+                }
+            })
+
+            ->orderBy('name')
+            ->limit(10)
+            ->get([
+                'id',
+                'name',
+                'slug',
+                'selling_price',
+                'stock_type',
+                'stock_quantity',
+                'track_serials',
+                'serial_start',
+                'serial_end',
+                'current_serial',
+            ]);
+
+        return response()->json($products);
+    }
+
+    return response()->json([
+        'message' => 'Invalid search type.',
+    ], 422);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Normalize Search Text
+|--------------------------------------------------------------------------
+*/
+private function normalizeSearch(string $value): string
+{
+    $value = trim($value);
+
+    if (class_exists(\Normalizer::class)) {
+        $value = \Normalizer::normalize(
+            $value,
+            \Normalizer::FORM_KC
+        ) ?: $value;
+    }
+
+    return mb_strtolower($value, 'UTF-8');
+}
+
 
     public function submitPayment(
         SubmitOrderPaymentRequest $request,

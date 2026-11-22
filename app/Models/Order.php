@@ -63,4 +63,9 @@ class Order extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+    public function purchasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'purchased_by');
+    }
+    
 }

@@ -88,7 +88,6 @@
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header py-3">
                                 <h5 class="mb-0 fw-semibold">
-                                    <i class="bi bi-search me-2 text-primary"></i>
                                     Search Products
                                 </h5>
                             </div>
@@ -125,7 +124,6 @@
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
                                 <h5 class="mb-0 fw-semibold">
-                                    <i class="bi bi-cart3 me-2 text-primary"></i>
                                     Selected Products
                                 </h5>
 

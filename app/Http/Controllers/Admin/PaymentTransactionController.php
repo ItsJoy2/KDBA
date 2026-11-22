@@ -32,10 +32,21 @@ class PaymentTransactionController extends Controller
         })
         ->with([
             'user:id,full_name,membership_number',
+
+            // Invoice
             'invoice:id,user_id,invoice_number,amount,invoice_type,cycle_key',
             'invoice.items:id,invoice_id,fee_key,title,description,unit_amount,quantity,amount',
             'invoice.user:id,full_name,membership_number',
+
+            // Order
             'order.user:id,full_name',
+            'order.purchasedBy:id,full_name',
+            'order.items.product',
+            'order.serials',
+            'order.transactions.paymentGateway',
+            'order.transactions.verifier',
+
+            // Payment
             'paymentGateway:id,name,account_number',
             'verifier:id,full_name',
         ])
