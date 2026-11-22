@@ -341,11 +341,11 @@
                 payment transaction(s) are waiting for verification.
             </div>
 
-            <a href="{{ route('admin.transactions.index') }}"
+            {{-- <a href="{{ route('admin.transactions.index') }}"
                class="btn btn-sm btn-warning mt-2 mt-md-0">
                 Review Payments
                 <i class="bi bi-arrow-right ms-1"></i>
-            </a>
+            </a> --}}
         </div>
     @endif
 

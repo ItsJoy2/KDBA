@@ -186,101 +186,105 @@
                 </div>
             @endif
 
-            @if( auth()->user()?->roles()->where('slug', 'super-admin')->exists() || auth()->user()?->hasPermission('users.assign_roles'))
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Change User Role</h5>
-                </div>
+            @php
+                $canAssignRoles = auth()->user()?->roles()->where('slug', 'super-admin')->exists()
+                    || auth()->user()?->hasPermission('users.assign_roles');
 
-                <div class="card-body">
-                    <p class="text-muted small">
-                        Select a role to update this user's permissions.
-                    </p>
+                $canChangeStatus = auth()->user()?->hasPermission('users.change_status');
+            @endphp
 
-                    <form
-                        action="{{ route('users.roles.update', $user) }}"
-                        method="POST"
-                    >
-                        @csrf
-                        @method('PATCH')
+            @if($canAssignRoles || $canChangeStatus)
+                <div class="row g-4 mt-1 mb-4">
 
-                        <div class="mb-3">
-                            <label for="role_id" class="form-label">
-                                Assigned Role
-                            </label>
-
-                            <select
-                                name="role_id"
-                                id="role_id"
-                                class="form-select"
-                                required
-                            >
-                                <option value="">Select a role</option>
-
-                                @foreach($roles as $role)
-                                    <option
-                                        value="{{ $role->id }}"
-                                        @selected(
-                                            $user->roles->contains('id', $role->id)
-                                        )
-                                    >
-                                        {{ $role->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            @error('role_id')
-                                <div class="text-danger small mt-1">
-                                    {{ $message }}
+                    {{-- Change User Role --}}
+                    @if($canAssignRoles)
+                        <div class="col-12 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header py-3">
+                                    <strong><i class="bi bi-shield-check me-2"></i>Change User Role</strong>
                                 </div>
-                            @enderror
-                        </div>
 
-                        <button type="submit" class="btn btn-primary">
-                            Update Role
-                        </button>
-                    </form>
-                </div>
-            </div>
-        @endif
+                                <div class="card-body">
+                                    <p class="text-muted small">
+                                        Select a role to update this user's permissions.
+                                    </p>
 
-            @if(auth()->user()->hasPermission('users.change_status'))
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header py-3">
-                        <strong><i class="bi bi-person-gear me-2"></i>Member Status</strong>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" action="{{ route('users.change-status', $user) }}"
-                              class="d-flex flex-wrap align-items-end gap-3">
-                            @csrf
-                            @method('PATCH')
+                                    <form action="{{ route('users.roles.update', $user) }}" method="POST">
+                                        @csrf
+                                        @method('PATCH')
 
-                            <div class="flex-grow-1">
-                                <label class="form-label">Member status</label>
-                                <select name="member_status" class="form-select" required>
-                                    @foreach([
-                                        'member' => 'Member',
-                                        'inactive' => 'Inactive',
-                                        'suspended' => 'Suspended',
-                                        'deceased' => 'Deceased',
-                                        'life_member' => 'Life Member',
-                                        'apprentice' => 'Apprentice',
-                                        'lawyer_assistant' => 'Lawyer Assistant',
-                                        'office_staff' => 'Office Staff',
-                                    ] as $value => $label)
-                                        <option value="{{ $value }}"
-                                            @selected(old('member_status', $user->member_status) === $value)>
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                        <div class="mb-3">
+                                            <label for="role_id" class="form-label">Assigned Role</label>
+
+                                            <select name="role_id" id="role_id" class="form-select" required>
+                                                <option value="">Select a role</option>
+
+                                                @foreach($roles as $role)
+                                                    <option value="{{ $role->id }}"
+                                                        @selected($user->roles->contains('id', $role->id))>
+                                                        {{ $role->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+
+                                            @error('role_id')
+                                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">Update Role</button>
+                                    </form>
+                                </div>
                             </div>
+                        </div>
+                    @endif
 
-                            <button type="submit" class="btn btn-outline-primary">
-                                Update Status
-                            </button>
-                        </form>
-                    </div>
+                    {{-- Member Status --}}
+                    @if($canChangeStatus)
+                        <div class="col-12 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header py-3">
+                                    <strong><i class="bi bi-person-gear me-2"></i>Member Status</strong>
+                                </div>
+
+                                <div class="card-body">
+                                    <p class="text-muted small">
+                                        Change this user's membership status.
+                                    </p>
+
+                                    <form method="POST" action="{{ route('users.change-status', $user) }}">
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Member status</label>
+
+                                            <select name="member_status" class="form-select" required>
+                                                @foreach([
+                                                    'member' => 'Member',
+                                                    'inactive' => 'Inactive',
+                                                    'suspended' => 'Suspended',
+                                                    'deceased' => 'Deceased',
+                                                    'life_member' => 'Life Member',
+                                                    'apprentice' => 'Apprentice',
+                                                    'lawyer_assistant' => 'Lawyer Assistant',
+                                                    'office_staff' => 'Office Staff',
+                                                ] as $value => $label)
+                                                    <option value="{{ $value }}"
+                                                        @selected(old('member_status', $user->member_status) === $value)>
+                                                        {{ $label }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-outline-primary">Update Status</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                 </div>
             @endif
 

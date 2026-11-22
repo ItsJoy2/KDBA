@@ -5,8 +5,9 @@ return [
         'member'           => 'member',
         'life_member'      => 'member',
         'office_staff'     => 'office-staff',
-        'apprentice'       => 'user/apprentice',
-        'lawyer_assistant' => 'user/apprentice',
+        'apprentice'       => 'apprentice',
+        'user'             => 'user',
+        'lawyer_assistant' => 'lawyer_assistant',
 
         'inactive'         => 'member',
         'suspended'        => 'member',

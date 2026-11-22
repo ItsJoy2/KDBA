@@ -37,9 +37,13 @@ class DefaultRolesSeeder extends Seeder
                 'description' => 'Operational office access.',
             ],
 
-            'user-apprentice' => [
-                'name' => 'User/Apprentice',
-                'description' => 'Basic user and apprentice access.',
+            'apprentice' => [
+                'name' => 'Apprentice',
+                'description' => 'Basic apprentice access.',
+            ],
+            'user' => [
+                'name' => 'User',
+                'description' => 'Basic user access.',
             ],
         ];
 
@@ -94,7 +98,12 @@ class DefaultRolesSeeder extends Seeder
                     'profile.edit',
                 ],
 
-                'user-apprentice' => [
+                'apprentice' => [
+                    'dashboard.view',
+                    'profile.view',
+                    'profile.edit',
+                ],
+                'user' => [
                     'dashboard.view',
                     'profile.view',
                     'profile.edit',
