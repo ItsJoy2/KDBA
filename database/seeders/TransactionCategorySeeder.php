@@ -66,6 +66,12 @@ class TransactionCategorySeeder extends Seeder
                 'type' => 'income',
                 'description' => 'Other miscellaneous income.',
             ],
+            [
+                'name' => 'Vakalatnama Sticker',
+                'slug' => 'vakalatnama-sticker',
+                'type' => 'income',
+                'description' => 'Income from Vakalatnama sticker orders.',
+            ],
 
             // Expense Categories
             [

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\TransactionCategoryController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VakalatnamaStickerController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TwoStepVerificationController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductShowcaseController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -236,6 +238,12 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
 
         Route::get('/finance/transactions', [FinancialLedgerController::class,'index',])->middleware('permission:transactions.view_all')->name('finance.transactions.index');
         Route::get('/finance/reports', [FinancialReportController::class,'index',])->middleware('permission:finance.reports')->name('finance.reports.index');
+
+        Route::prefix('vakalatnama-stickers')->name('vakalatnama-stickers.')->controller(VakalatnamaStickerController::class)->group(function () {
+
+            Route::get('/settings', 'settings')->middleware('permission:vakalatnama-sticker-settings')->name('settings');
+            Route::put('/settings', 'updateSettings')->middleware('permission:vakalatnama-sticker-settings')->name('settings.update');
+        });
 
     });
 

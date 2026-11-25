@@ -15,6 +15,7 @@ class Transaction extends Model
     protected $fillable = [
         'invoice_id',
         'order_id',
+        'vakalatnama_sticker_order_id',
         'invoice_item_id',
         'order_item_id',
         'user_id',
@@ -82,5 +83,11 @@ class Transaction extends Model
         return $this->belongsTo(Order::class);
     }
     
-    
+    public function vakalatnamaStickerOrder(): BelongsTo
+    {
+        return $this->belongsTo(
+            VakalatnamaStickerOrder::class,
+            'vakalatnama_sticker_order_id'
+        );
+    }
 }

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->foreignId('order_id')->nullable()->constrained('orders')->nullOnDelete();
+            $table->foreignId('vakalatnama_sticker_order_id')->nullable()->constrained('vakalatnama_sticker_orders')->restrictOnDelete();
             $table->foreignId('invoice_item_id')->nullable()->index('transactions_invoice_item_id_index')->constrained('invoice_items')->restrictOnDelete();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->foreignId('category_id')->nullable()->constrained('transaction_categories')->nullOnDelete();
@@ -32,6 +33,7 @@ return new class extends Migration
             $table->index(['user_id', 'status']);
             $table->index(['invoice_id', 'status']);
             $table->index(['order_id', 'status']);
+            $table->index(['vakalatnama_sticker_order_id', 'status'],'transactions_sticker_order_status_index');
             $table->index(['verified_by', 'verified_at']);
         });
     }

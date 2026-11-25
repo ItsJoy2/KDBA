@@ -322,4 +322,20 @@ class User extends Authenticatable
             ->errorCorrection('M')
             ->generate($this->publicCardUrl());
     }
+
+    public function vakalatnamaStickerOrders(): HasMany
+    {
+        return $this->hasMany(
+            VakalatnamaStickerOrder::class,
+            'user_id'
+        );
+    }
+
+    public function createdVakalatnamaStickerOrders(): HasMany
+    {
+        return $this->hasMany(
+            VakalatnamaStickerOrder::class,
+            'created_by'
+        );
+    }
 }

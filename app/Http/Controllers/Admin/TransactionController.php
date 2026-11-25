@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
+use App\Models\VakalatnamaStickerOrder;
 use App\Services\Finance\FinancialTransactionService;
 use App\Support\Amount;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 class TransactionController extends Controller
@@ -134,6 +136,13 @@ class TransactionController extends Controller
     public function store(AdminStoreTransactionRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+
+        if (! empty($validated['vakalatnama_sticker_order_id'])) {
+            return $this->storeVakalatnamaStickerPayment(
+                $request,
+                $validated
+            );
+        }
 
         if (! empty($validated['order_id'])) {
             return $this->storeOrderPayment($request, $validated);
@@ -711,6 +720,171 @@ class TransactionController extends Controller
 
             throw $exception;
         }
+    }
+
+
+    private function storeVakalatnamaStickerPayment(
+    AdminStoreTransactionRequest $request,
+    array $validated
+    ): RedirectResponse {
+        $admin = $request->user();
+
+        abort_unless(
+            $admin->hasPermission('transactions.verify')
+            && $admin->hasPermission('vakalatnama-sticker-payment-verify'),
+            403
+        );
+
+        if ($validated['status'] !== 'approved') {
+            throw ValidationException::withMessages([
+                'status' => 'Admin sticker payments must be approved immediately.',
+            ]);
+        }
+
+        $receiptPath = $request->hasFile('receipt')
+            ? $request->file('receipt')->store('payment-receipts', 'local')
+            : null;
+
+        try {
+            DB::transaction(function () use (
+                $validated,
+                $receiptPath,
+                $admin
+            ): void {
+                $stickerOrder = VakalatnamaStickerOrder::query()
+                    ->whereKey($validated['vakalatnama_sticker_order_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($stickerOrder->status !== 'pending') {
+                    throw ValidationException::withMessages([
+                        'vakalatnama_sticker_order_id' =>
+                            'This sticker order is not available for payment.',
+                    ]);
+                }
+
+                $existingPayment = Transaction::query()
+                    ->where('vakalatnama_sticker_order_id', $stickerOrder->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->exists();
+
+                if ($existingPayment) {
+                    throw ValidationException::withMessages([
+                        'vakalatnama_sticker_order_id' =>
+                            'A payment has already been submitted for this sticker order.',
+                    ]);
+                }
+
+                if (! Amount::equals(
+                    (string) $validated['amount'],
+                    (string) $stickerOrder->total_amount
+                )) {
+                    throw ValidationException::withMessages([
+                        'amount' => 'Payment amount must match the sticker order amount.',
+                    ]);
+                }
+
+                $gateway = PaymentGateway::query()
+                    ->whereKey($validated['payment_gateway_id'])
+                    ->where('is_active', true)
+                    ->first();
+
+                if (! $gateway) {
+                    throw ValidationException::withMessages([
+                        'payment_gateway_id' =>
+                            'The selected payment gateway is unavailable.',
+                    ]);
+                }
+
+                $category = TransactionCategory::query()
+                    ->where('slug', 'vakalatnama-sticker-sales')
+                    ->where('type', 'income')
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $category) {
+                    throw new RuntimeException(
+                        'Active income category [vakalatnama-sticker-sales] was not found.'
+                    );
+                }
+
+                $isCash = strtolower($gateway->type ?? '') === 'cash';
+                $now = now();
+
+                Transaction::create([
+                    'vakalatnama_sticker_order_id' => $stickerOrder->id,
+                    'invoice_id' => null,
+                    'invoice_item_id' => null,
+                    'order_id' => null,
+                    'order_item_id' => null,
+
+                    // The member receiving the stickers, not the admin.
+                    'user_id' => $stickerOrder->user_id,
+                    'category_id' => $category->id,
+                    'payment_gateway_id' => $gateway->id,
+
+                    'trx_id' => $isCash
+                        ? 'CASH-' . Str::upper(Str::random(8))
+                        : $validated['trx_id'],
+
+                    'sender_mobile' => $isCash
+                        ? 'N/A'
+                        : $validated['sender_mobile'],
+
+                    'amount' => $stickerOrder->total_amount,
+                    'description' => 'Vakalatnama Sticker Order: '
+                        . $stickerOrder->order_number,
+
+                    'status' => 'approved',
+                    'source' => 'admin',
+                    'recorded_by' => $admin->id,
+                    'verified_by' => $admin->id,
+                    'verified_at' => $now,
+                    'rejection_reason' => null,
+                    'receipt_path' => $receiptPath,
+                    'submitted_at' => $now,
+                ]);
+
+                $stickerOrder->update([
+                    'status' => 'approved',
+                    'approved_by' => $admin->id,
+                    'approved_at' => $now,
+                    'rejection_reason' => null,
+                ]);
+
+                $stickerOrder->stickers()
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'ready',
+                        'updated_at' => $now,
+                    ]);
+            }, 3);
+
+            app(FinancialTransactionService::class)
+                ->clearFinancialCache();
+
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($receiptPath) {
+                Storage::disk('local')->delete($receiptPath);
+            }
+
+            throw ValidationException::withMessages([
+                'trx_id' => 'This transaction ID has already been used.',
+            ]);
+
+        } catch (Throwable $exception) {
+            if ($receiptPath) {
+                Storage::disk('local')->delete($receiptPath);
+            }
+
+            throw $exception;
+        }
+
+        return back()->with(
+            'success',
+            'Vakalatnama sticker payment recorded and approved successfully.'
+        );
     }
 
 
