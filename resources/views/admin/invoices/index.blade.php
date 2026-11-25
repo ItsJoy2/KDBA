@@ -140,7 +140,7 @@
                                             <i class="bi bi-eye"></i>
                                         </button>
 
-                                        {{-- @if(in_array($invoice->status, ['pending', 'overdue'], true))
+                                        @if(in_array($invoice->status, ['pending', 'overdue'], true))
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-success js-open-invoice-payment"
                                                     data-invoice-id="{{ $invoice->id }}"
@@ -151,7 +151,7 @@
 
                                                 <i class="bi bi-cash-coin"></i>
                                             </button>
-                                        @endif --}}
+                                        @endif
 
                                         <a href="{{ route('admin.invoices.print', $invoice->id) }}"
                                             target="_blank"
