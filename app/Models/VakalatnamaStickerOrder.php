@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,63 +16,107 @@ class VakalatnamaStickerOrder extends Model
         'quantity',
         'unit_price',
         'total_amount',
-        'invoice_id',
+        'payment_status',
         'status',
+        'transaction_id',
         'approved_by',
         'approved_at',
         'rejection_reason',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'quantity' => 'integer',
-            'unit_price' => 'decimal:2',
-            'total_amount' => 'decimal:2',
-            'approved_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'quantity' => 'integer',
+        'unit_price' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'approved_at' => 'datetime',
+    ];
 
+    /**
+     * Member who owns the order.
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Admin/staff who created the order.
+     */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
     }
 
+    /**
+     * Admin/staff who approved the payment.
+     */
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(
+            User::class,
+            'approved_by'
+        );
     }
 
-    public function invoice(): BelongsTo
+    /**
+     * Associated payment transaction.
+     */
+    public function transaction(): BelongsTo
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(
+            Transaction::class,
+            'transaction_id'
+        );
     }
 
+    /**
+     * Individual stickers belonging to this order.
+     */
     public function stickers(): HasMany
     {
-        return $this->hasMany(VakalatnamaSticker::class, 'order_id');
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeApproved($query)
-    {
-        return $query->where('status', 'approved');
-    }
-
-    public function transactions(): HasMany
-    {
         return $this->hasMany(
-            Transaction::class,
-            'vakalatnama_sticker_order_id'
+            VakalatnamaSticker::class,
+            'order_id'
         );
+    }
+
+    /**
+     * Scope: paid orders.
+     */
+    public function scopePaid(Builder $query): Builder
+    {
+        return $query->where('payment_status', 'paid');
+    }
+
+    /**
+     * Scope: pending payment orders.
+     */
+    public function scopePendingPayment(Builder $query): Builder
+    {
+        return $query->whereIn(
+            'payment_status',
+            ['pending', 'processing']
+        );
+    }
+
+    /**
+     * Determine whether the order is paid.
+     */
+    public function isPaid(): bool
+    {
+        return $this->payment_status === 'paid';
+    }
+
+    /**
+     * Determine whether all stickers have been issued.
+     */
+    public function hasIssuedStickers(): bool
+    {
+        return $this->stickers()
+            ->where('status', 'issued')
+            ->exists();
     }
 }

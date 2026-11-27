@@ -2,38 +2,39 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VakalatnamaSticker extends Model
 {
-    /**
-     * Prevent unique number from appearing in
-     * normal JSON/API serialization.
-     */
+    protected $fillable = [
+        'order_id',
+        'user_id',
+        'record_number',
+        'unique_number',
+        'status',
+        'print_count',
+        'printed_at',
+        'printed_by',
+        'last_printed_at',
+        'last_printed_by',
+    ];
+
     protected $hidden = [
         'unique_number',
     ];
 
-    protected $fillable = [
-        'order_id',
-        'user_id',
-        'unique_number',
-        'status',
-        'printed_at',
-        'print_count',
-        'last_printed_by',
+    protected $casts = [
+        'print_count' => 'integer',
+        'printed_at' => 'datetime',
+        'last_printed_at' => 'datetime',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'printed_at' => 'datetime',
-            'print_count' => 'integer',
-        ];
-    }
-
+    /**
+     * Parent order.
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(
@@ -42,16 +43,39 @@ class VakalatnamaSticker extends Model
         );
     }
 
+    /**
+     * Member who owns the sticker.
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function lastPrintedBy(): BelongsTo
+    /**
+     * User who performed the first print.
+     */
+    public function printer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'last_printed_by');
+        return $this->belongsTo(
+            User::class,
+            'printed_by'
+        );
     }
 
+    /**
+     * User who performed the most recent print.
+     */
+    public function lastPrinter(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'last_printed_by'
+        );
+    }
+
+    /**
+     * Printing audit history.
+     */
     public function printLogs(): HasMany
     {
         return $this->hasMany(
@@ -60,21 +84,38 @@ class VakalatnamaSticker extends Model
         );
     }
 
-    public function scopeReady($query)
+    /**
+     * Scope: issued stickers.
+     */
+    public function scopeIssued(Builder $query): Builder
     {
-        return $query->where('status', 'ready');
+        return $query->where('status', 'issued');
     }
 
-    public function scopePrinted($query)
+    /**
+     * Scope: not yet printed.
+     */
+    public function scopeUnprinted(Builder $query): Builder
     {
-        return $query->where('status', 'printed');
+        return $query->where('print_count', 0);
     }
 
-    public function isPrintable(): bool
+    /**
+     * Determine whether the sticker has been printed.
+     */
+    public function isPrinted(): bool
     {
-        return $this->status === 'ready'
-            && $this->printed_at === null
-            && $this->print_count === 0
-            && $this->order?->status === 'approved';
+        return $this->print_count > 0;
+    }
+
+    /**
+     * Determine whether the sticker can be printed
+     * for the first time.
+     */
+    public function canPrint(): bool
+    {
+        return $this->status === 'issued'
+            && $this->unique_number !== null
+            && $this->print_count === 0;
     }
 }

@@ -7,18 +7,17 @@ use App\Http\Requests\VerifyTransactionRequest;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Transaction;
+use App\Models\VakalatnamaStickerOrder;
 use App\Services\Finance\FinancialTransactionService;
+use App\Services\VakalatnamaStickerService;
 use App\Support\Amount;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use RuntimeException;
 
 class PaymentTransactionController extends Controller
 {
-
     public function __construct(
         private readonly FinancialTransactionService $financialService
     ) {}
@@ -26,46 +25,49 @@ class PaymentTransactionController extends Controller
     public function index(): View
     {
         $transactions = Transaction::query()
-        ->where(function ($query) {
-            $query->whereNotNull('invoice_id')
-                ->orWhereNotNull('order_id');
-        })
-        ->with([
-            'user:id,full_name,membership_number',
+            ->where(function ($query) {
+                $query->whereNotNull('invoice_id')
+                    ->orWhereNotNull('order_id');
+            })
+            ->with([
+                'user:id,full_name,membership_number',
 
-            // Invoice
-            'invoice:id,user_id,invoice_number,amount,invoice_type,cycle_key',
-            'invoice.items:id,invoice_id,fee_key,title,description,unit_amount,quantity,amount',
-            'invoice.user:id,full_name,membership_number',
+                // Invoice
+                'invoice:id,user_id,invoice_number,amount,invoice_type,cycle_key',
+                'invoice.items:id,invoice_id,fee_key,title,description,unit_amount,quantity,amount',
+                'invoice.user:id,full_name,membership_number',
 
-            // Order
-            'order.user:id,full_name',
-            'order.purchasedBy:id,full_name',
-            'order.items.product',
-            'order.serials',
-            'order.transactions.paymentGateway',
-            'order.transactions.verifier',
+                // Order
+                'order.user:id,full_name',
+                'order.purchasedBy:id,full_name',
+                'order.items.product',
+                'order.serials',
+                'order.transactions.paymentGateway',
+                'order.transactions.verifier',
 
-            // Payment
-            'paymentGateway:id,name,account_number',
-            'verifier:id,full_name',
-        ])
-        ->latest()
-        ->paginate(20);
+                // Payment
+                'paymentGateway:id,name,account_number',
+                'verifier:id,full_name',
+            ])
+            ->latest()
+            ->paginate(20);
 
         return view(
             'admin.transactions.payments.index',
             compact('transactions')
         );
     }
-    
 
-    public function verify( VerifyTransactionRequest $request,  Transaction $transaction ): RedirectResponse {
+    public function verify(
+        VerifyTransactionRequest $request,
+        Transaction $transaction
+    ): RedirectResponse {
         $data = $request->validated();
 
-        $verifiedBy = auth()->id();
+        $verifiedBy = $request->user()->id;
 
         DB::transaction(function () use (
+            $request,
             $transaction,
             $data,
             $verifiedBy
@@ -82,8 +84,49 @@ class PaymentTransactionController extends Controller
             }
 
             /*
-            * Order Payment Verification
-            */
+             * Vakalatnama Sticker Payment Verification
+             */
+            if (
+                VakalatnamaStickerOrder::where(
+                    'transaction_id',
+                    $lockedTransaction->id
+                )->exists()
+            ) {
+                if ($data['status'] === 'approved') {
+                    $lockedTransaction->update([
+                        'status' => 'approved',
+                        'verified_by' => $verifiedBy,
+                        'verified_at' => now(),
+                        'rejection_reason' => null,
+                    ]);
+
+                    app(VakalatnamaStickerService::class)
+                        ->completePayment(
+                            $request->user(),
+                            $lockedTransaction->id
+                        );
+                } else {
+                    $lockedTransaction->update([
+                        'status' => 'rejected',
+                        'verified_by' => $verifiedBy,
+                        'verified_at' => now(),
+                        'rejection_reason' => $data['rejection_reason'] ?? null,
+                    ]);
+
+                    app(VakalatnamaStickerService::class)
+                        ->rejectPayment(
+                            $request->user(),
+                            $lockedTransaction->id,
+                            $data['rejection_reason'] ?? null
+                        );
+                }
+
+                return;
+            }
+
+            /*
+             * Order Payment Verification
+             */
             if ($lockedTransaction->order_id !== null) {
                 $this->verifyOrderPayment(
                     $lockedTransaction,
@@ -95,8 +138,8 @@ class PaymentTransactionController extends Controller
             }
 
             /*
-            * Invoice Payment Verification
-            */
+             * Invoice Payment Verification
+             */
             if (
                 ! $lockedTransaction->invoice_id ||
                 $lockedTransaction->invoice_item_id !== null
@@ -163,6 +206,7 @@ class PaymentTransactionController extends Controller
             }
         }, 3);
 
+        // Clear financial cache after successful verification.
         $this->financialService->clearFinancialCache();
 
         return back()->with(
@@ -173,8 +217,11 @@ class PaymentTransactionController extends Controller
         );
     }
 
-
-    private function verifyOrderPayment( Transaction $transaction, array $data, int $verifiedBy ): void {
+    private function verifyOrderPayment(
+        Transaction $transaction,
+        array $data,
+        int $verifiedBy
+    ): void {
         $order = Order::query()
             ->whereKey($transaction->order_id)
             ->lockForUpdate()
@@ -227,6 +274,4 @@ class PaymentTransactionController extends Controller
             'payment_status' => 'pending',
         ]);
     }
-
-
 }

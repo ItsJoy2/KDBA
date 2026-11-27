@@ -4,15 +4,16 @@ namespace Database\Seeders;
 
 use App\Models\SystemSetting;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
-class VakalatnamaStickerSettingsSeeder extends Seeder
+class VakalatnamaStickerSettingSeeder extends Seeder
 {
     public function run(): void
     {
         $settings = [
             [
                 'key' => 'vakalatnama_sticker_price',
-                'value' => '300.00',
+                'value' => '100.00',
                 'type' => 'text',
                 'group' => 'vakalatnama_sticker',
             ],
@@ -34,5 +35,14 @@ class VakalatnamaStickerSettingsSeeder extends Seeder
                 ]
             );
         }
+
+        // Invalidate only the sticker setting cache entries.
+        Cache::forget(
+            'system_setting:vakalatnama_sticker_price'
+        );
+
+        Cache::forget(
+            'system_setting:vakalatnama_sticker_enabled'
+        );
     }
 }

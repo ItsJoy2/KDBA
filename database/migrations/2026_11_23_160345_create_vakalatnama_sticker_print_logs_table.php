@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -10,23 +11,14 @@ return new class extends Migration
     {
         Schema::create('vakalatnama_sticker_print_logs', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('sticker_id')
-                ->constrained('vakalatnama_stickers')
-                ->cascadeOnDelete();
-
-            $table->foreignId('printed_by')
-                ->constrained('users')
-                ->restrictOnDelete();
-
-            // original, reprint
-            $table->string('print_type', 20);
-
+            $table->foreignId('sticker_id')->constrained('vakalatnama_stickers')->restrictOnDelete();
+            $table->foreignId('printed_by')->constrained('users')->restrictOnDelete();
+            $table->enum('print_type', ['first_print','reprint',]);
             $table->timestamp('printed_at');
-
+            $table->text('remarks')->nullable();
             $table->timestamps();
-
-            $table->index(['sticker_id', 'print_type']);
+            $table->index( ['sticker_id', 'printed_at'],'vs_print_logs_sticker_date_idx');
+            $table->index( ['printed_by', 'printed_at'], 'vs_print_logs_user_date_idx');
         });
     }
 

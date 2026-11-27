@@ -38,3 +38,6 @@
 </section>
 
 @endsection
+@push('scripts')
+    <script src="{{ asset('assets/js/committee-current.js') }}"></script>
+@endpush

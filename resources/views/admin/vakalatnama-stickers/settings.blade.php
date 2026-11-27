@@ -1,104 +1,78 @@
-
 @extends('layouts.app')
 
 @section('title', 'Vakalatnama Sticker Settings')
 
 @section('content')
-<div class="container-fluid">
-
-    <div class="row mb-3">
-        <div class="col-12">
-            <h4>
-                Vakalatnama Sticker Settings
-            </h4>
-        </div>
+<div class="app-content-header">
+    <div class="container-fluid">
+        <h3 class="mb-0">Vakalatnama Sticker Settings</h3>
     </div>
+</div>
 
-    @include('components.global-feedback')
+<div class="app-content">
+    <div class="container-fluid">
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
 
-    <div class="card shadow-sm">
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-        <div class="card-header">
-            <h5 class="mb-0">Sticker Configuration</h5>
-        </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">General Configuration</h5>
+            </div>
 
-        <div class="card-body">
-
-            <form method="POST"
-                  action="{{ route('admin.vakalatnama-stickers.settings.update') }}">
-
+            <form method="POST" action="{{ route('admin.vakalatnama.settings.update') }}">
                 @csrf
                 @method('PUT')
 
-                <div class="row">
-
-                    <div class="col-md-6 mb-3">
-
-                        <label class="form-label">
-                            Sticker Price (BDT)
-                            <span class="text-danger">*</span>
-                        </label>
-
-                        <div class="input-group">
-                            <span class="input-group-text">৳</span>
-
-                            <input type="number"
-                                   name="price"
-                                   class="form-control"
-                                   value="{{ old('price', $price) }}"
-                                   min="0.01"
-                                   max="1000000"
-                                   step="0.01"
-                                   required>
-                        </div>
-
-                        <small class="text-muted">
-                            Price per individual sticker.
-                        </small>
-
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="unit_price" class="form-label">Sticker Unit Price (৳)</label>
+                        <input
+                            type="number"
+                            name="unit_price"
+                            id="unit_price"
+                            class="form-control"
+                            min="0.01"
+                            step="0.01"
+                            value="{{ old('unit_price', $settings['unit_price'] ?? 0) }}"
+                            required
+                        >
+                        @error('unit_price') <div class="text-danger small">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="col-md-6 mb-3">
-
-                        <label class="form-label">
-                            Sticker Service Status
+                    <div class="form-check form-switch">
+                        <input
+                            type="checkbox"
+                            class="form-check-input"
+                            role="switch"
+                            id="enabled"
+                            name="enabled"
+                            value="1"
+                            @checked(old('enabled', $settings['enabled'] ?? false))
+                        >
+                        <label class="form-check-label" for="enabled">
+                            Enable Vakalatnama Sticker Orders
                         </label>
-
-                        <select name="enabled"
-                                class="form-select"
-                                required>
-
-                            <option value="1"
-                                {{ (string) old('enabled', $enabled ? '1' : '0') === '1' ? 'selected' : '' }}>
-                                Enabled
-                            </option>
-
-                            <option value="0"
-                                {{ (string) old('enabled', $enabled ? '1' : '0') === '0' ? 'selected' : '' }}>
-                                Disabled
-                            </option>
-
-                        </select>
-
-                        <small class="text-muted">
-                            Disable to prevent new sticker orders.
-                        </small>
-
                     </div>
-
                 </div>
 
-                <hr>
-
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i>
-                    Save Settings
-                </button>
-
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        Save Settings
+                    </button>
+                </div>
             </form>
-
         </div>
     </div>
-
 </div>
 @endsection

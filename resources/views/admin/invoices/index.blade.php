@@ -215,7 +215,6 @@
 
                 <div class="modal-header">
                     <h5 class="modal-title" id="invoicePaymentModalLabel">
-                        <i class="bi bi-cash-coin me-1"></i>
                         Record Invoice Payment
                     </h5>
 

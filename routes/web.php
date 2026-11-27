@@ -15,7 +15,10 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\TransactionCategoryController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VakalatnamaOrderController;
+use App\Http\Controllers\Admin\VakalatnamaPrintController;
 use App\Http\Controllers\Admin\VakalatnamaStickerController;
+use App\Http\Controllers\Admin\VakalatnamaStickerSettingsController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\TwoStepVerificationController;
@@ -25,7 +28,12 @@ use App\Http\Controllers\Member\TransactionController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductShowcaseController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VakalatnamaVerificationController;
 use Illuminate\Support\Facades\Route;
+
+
+
+
 
 
 
@@ -214,16 +222,15 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
         Route::prefix('invoices')->name('invoices.')->controller(InvoiceController::class)->group(function () {
             Route::get('/', 'index')->middleware('permission:invoices.view')->name('index');
             Route::post('/', 'store')->middleware('permission:invoices.create')->name('store');
-            Route::get('/{invoice}/print', [InvoiceController::class,'print',])->middleware('permission:invoices.view')->name('print');
+            Route::get('/{invoice}/print', [InvoiceController::class, 'print'])->middleware('permission:invoices.view')->name('print');
         });
 
         Route::prefix('transactions')->name('transactions.')->controller(AdminTransactionController::class)->group(function () {
             Route::post('/', [AdminTransactionController::class, 'store'])->middleware('permission:transactions.create')->name('store');
             Route::post('/manual', [AdminTransactionController::class, 'storeManual'])->middleware('permission:transactions.create')->name('manual.store');
-
-            Route::get('/manual/create', [ AdminTransactionController::class, 'createManual',])->middleware('permission:transactions.create')->name('manual.create');
-
+            Route::get('/manual/create', [AdminTransactionController::class, 'createManual'])->middleware('permission:transactions.create')->name('manual.create');
         });
+
         Route::prefix('transaction-categories')->name('transaction-categories.')->controller(TransactionCategoryController::class)->group(function () {
             Route::get('/', 'index')->middleware('permission:finance_categories.view')->name('index');
             Route::post('/', 'store')->middleware('permission:finance_categories.create')->name('store');
@@ -236,13 +243,74 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
             Route::post('/{transaction}/verify', 'verify')->middleware('permission:transactions.verify')->name('verify');
         });
 
-        Route::get('/finance/transactions', [FinancialLedgerController::class,'index',])->middleware('permission:transactions.view_all')->name('finance.transactions.index');
-        Route::get('/finance/reports', [FinancialReportController::class,'index',])->middleware('permission:finance.reports')->name('finance.reports.index');
+        Route::get('/finance/transactions', [FinancialLedgerController::class, 'index'])->middleware('permission:transactions.view_all')->name('finance.transactions.index');
+        Route::get('/finance/reports', [FinancialReportController::class, 'index'])->middleware('permission:finance.reports')->name('finance.reports.index');
 
-        Route::prefix('vakalatnama-stickers')->name('vakalatnama-stickers.')->controller(VakalatnamaStickerController::class)->group(function () {
 
-            Route::get('/settings', 'settings')->middleware('permission:vakalatnama-sticker-settings')->name('settings');
-            Route::put('/settings', 'updateSettings')->middleware('permission:vakalatnama-sticker-settings')->name('settings.update');
+        // Route::prefix('vakalatnama-stickers')->name('vakalatnama.')->group(function () {
+
+        //     Route::middleware('permission:vakalatnama.settings')->group(function () {
+        //         Route::get('/settings', [VakalatnamaStickerSettingsController::class, 'index'])->name('settings');
+        //         Route::put('/settings', [VakalatnamaStickerSettingsController::class, 'update'])->name('settings.update');
+        //     });
+
+        //     Route::middleware('permission:vakalatnama.create')->group(function () {
+        //         Route::get('/create', [VakalatnamaOrderController::class, 'adminCreate'])->name('create');
+        //         Route::post('/', [VakalatnamaOrderController::class, 'adminStore'])->name('store');
+        //     });
+
+        //     Route::middleware('permission:vakalatnama.print')->group(function () {
+        //         Route::post('/stickers/{sticker}/print', [VakalatnamaPrintController::class, 'print'])->whereNumber('sticker')->name('print');
+        //     });
+
+        //     Route::middleware('permission:vakalatnama.reprint')->group(function () {
+        //         Route::post('/stickers/{sticker}/reprint', [VakalatnamaPrintController::class, 'reprint'])->whereNumber('sticker')->name('reprint');
+        //     });
+
+        //     // Print History
+        //     Route::middleware('permission:vakalatnama.view')->group(function () {
+        //         Route::get('/{sticker}/print-history', [VakalatnamaPrintController::class, 'history'])->whereNumber('sticker')->name('print-history');
+        //     });
+
+        //     // Payment
+        //     Route::middleware('permission:vakalatnama.pay')->group(function () {
+        //         Route::post('/{order}/payment', [VakalatnamaOrderController::class, 'adminPay'])->whereNumber('order')->name('payment');
+        //     });
+
+        //     // Order List and Details
+        //     Route::middleware('permission:vakalatnama.view')->group(function () {
+        //         Route::get('/', [VakalatnamaOrderController::class, 'adminIndex'])->name('index');
+        //         Route::get('/{order}', [VakalatnamaOrderController::class, 'adminShow'])->whereNumber('order')->name('show');
+        //     });
+
+        // });
+
+        Route::prefix('vakalatnama-stickers')->name('vakalatnama.')->group(function () {
+            Route::middleware('permission:vakalatnama.settings')->group(function () {
+                Route::get('/settings', [VakalatnamaStickerSettingsController::class,'index',])->name('settings');
+                Route::put('/settings', [VakalatnamaStickerSettingsController::class, 'update',])->name('settings.update');
+            });
+
+            Route::middleware('permission:vakalatnama.create')->group(function () {
+                Route::get('/create', [VakalatnamaOrderController::class,'adminCreate',])->name('create');
+                Route::post('/', [ VakalatnamaOrderController::class, 'adminStore',])->name('store');
+            });
+             Route::middleware('permission:vakalatnama.print') ->group(function () {
+                Route::post('/stickers/{sticker}/print', [VakalatnamaPrintController::class,'print',])->whereNumber('sticker')->name('print');
+            });
+            Route::middleware('permission:vakalatnama.reprint') ->group(function () {
+                Route::post('/stickers/{sticker}/reprint', [ VakalatnamaPrintController::class, 'reprint',])->whereNumber('sticker')->name('reprint');
+            });
+            Route::middleware('permission:vakalatnama.view')->group(function () {
+                Route::get('/stickers/{sticker}/print-history', [VakalatnamaPrintController::class, 'history', ])->whereNumber('sticker')->name('print-history');
+            });
+            Route::middleware('permission:vakalatnama.pay')->group(function () {
+                Route::post('/{order}/payment', [VakalatnamaOrderController::class,'adminPay',])->whereNumber('order')->name('payment');
+            });
+            Route::middleware('permission:vakalatnama.view')->group(function () {
+                Route::get('/', [VakalatnamaOrderController::class,'adminIndex',])->name('index');
+                Route::get('/{order}', [VakalatnamaOrderController::class,'adminShow',])->whereNumber('order')->name('show');
+            });
         });
 
     });
@@ -250,6 +318,15 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
     Route::prefix('member')->name('member.')->controller(MemberInvoiceController::class)->group(function () {
         Route::get('/invoices', 'index')->name('invoices.index');
         Route::post('/invoices/{invoice}/pay', 'pay')->name('invoices.pay');
+
+
+        Route::prefix('vakalatnama-stickers')->name('vakalatnama.')->group(function () {
+            Route::get('/',[VakalatnamaOrderController::class, 'memberIndex'])->name('index');
+            Route::get('/create',[VakalatnamaOrderController::class, 'memberCreate'])->name('create');
+            Route::post('/',[VakalatnamaOrderController::class, 'memberStore'])->name('store');
+            Route::get('/{order}',[VakalatnamaOrderController::class, 'memberShow'])->whereNumber('order')->name('show');
+            Route::post('/{order}/payment', [VakalatnamaOrderController::class, 'memberPay'])->whereNumber('order')->name('payment');
+        });
     });
 
     Route::middleware(['permission:transactions.view_own'])->prefix('member')->name('member.')->group(function () {
@@ -257,9 +334,16 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
     });
 
     Route::get('/id/{ppt}/pdf', [UserController::class, 'memberCardPdf'])->where('ppt', '[A-Za-z0-9]{32,64}')->middleware('throttle:30,1')->name('member.card.pdf');
+    
 
 });
 
 
 
 Route::get('/id/{ppt}', [UserController::class, 'memberCardShow'])->where('ppt', '[A-Za-z0-9]{32,64}')->middleware('throttle:60,1')->name('member.card');
+
+Route::prefix('vakalatnama')->name('vakalatnama.')->controller(VakalatnamaVerificationController::class)->group(function () {
+    Route::get('/verify', 'index')->name('verify');
+    Route::post( '/verify', 'lookup')->middleware('throttle:20,1')->name('verify.lookup');
+    Route::get('/verify/{uniqueNumber}', 'verify')->where('uniqueNumber', '[0-9]{18}')->middleware('throttle:60,1')->name('verify.number');
+});

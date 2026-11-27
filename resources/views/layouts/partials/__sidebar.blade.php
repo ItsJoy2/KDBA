@@ -141,6 +141,83 @@
                     </li>
                 @endif
 
+                {{-- ==================== VAKALATNAMA STICKERS ==================== --}}
+
+                @if(
+                    auth()->user()->hasPermission('vakalatnama.view') ||
+                    auth()->user()->hasPermission('vakalatnama.view_all') ||
+                    auth()->user()->hasPermission('vakalatnama.create') ||
+                    auth()->user()->hasPermission('vakalatnama.print') ||
+                    auth()->user()->hasPermission('vakalatnama.reprint') ||
+                    auth()->user()->hasPermission('vakalatnama.settings') ||
+                    auth()->user()->hasPermission('settings.manage')
+                )
+                    <li class="nav-item {{ request()->routeIs('admin.vakalatnama.*') ? 'menu-open' : '' }}">
+                        <a href="#"
+                           class="nav-link {{ request()->routeIs('admin.vakalatnama.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-upc-scan"></i>
+                            <p>
+                                Vakalatnama Stickers
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                            </p>
+                        </a>
+
+                        <ul class="nav nav-treeview">
+                            @if(
+                                auth()->user()->hasPermission('vakalatnama.view') ||
+                                auth()->user()->hasPermission('vakalatnama.view_all')
+                            )
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.vakalatnama.index') }}"
+                                       class="nav-link {{ request()->routeIs('admin.vakalatnama.index', 'admin.vakalatnama.show') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>All Sticker Orders</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if(auth()->user()->hasPermission('vakalatnama.create'))
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.vakalatnama.create') }}"
+                                       class="nav-link {{ request()->routeIs('admin.vakalatnama.create') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Create Sticker Order</p>
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if(
+                                auth()->user()->hasPermission('vakalatnama.settings') ||
+                                auth()->user()->hasPermission('settings.manage')
+                            )
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.vakalatnama.settings') }}"
+                                       class="nav-link {{ request()->routeIs('admin.vakalatnama.settings*') ? 'active' : '' }}">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Sticker Settings</p>
+                                    </a>
+                                </li>
+                            @endif
+                        </ul>
+                    </li>
+                @endif
+
+                {{-- Member's Own Vakalatnama Sticker Orders --}}
+                @if(
+                    in_array(auth()->user()->member_status, ['member'], true) &&
+                    (
+                        auth()->user()->hasPermission('vakalatnama.view') ||
+                        auth()->user()->hasPermission('vakalatnama.create_own')
+                    )
+                )
+                    <li class="nav-item">
+                        <a href="{{ route('member.vakalatnama.index') }}"
+                           class="nav-link {{ request()->routeIs('member.vakalatnama.*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-upc-scan"></i>
+                            <p>My Vakalatnama Stickers</p>
+                        </a>
+                    </li>
+                @endif
 
                 {{-- Member's Own Invoices --}}
                 @if(in_array(auth()->user()->member_status, ['member', 'life_member'], true))

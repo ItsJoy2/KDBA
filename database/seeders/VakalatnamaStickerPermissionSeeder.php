@@ -5,80 +5,116 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class VakalatnamaStickerPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $module = 'vakalatnama_sticker';
-
         $permissions = [
-            'view' => 'View Vakalatnama Stickers',
-            'view_all' => 'View All Vakalatnama Stickers',
-            'create' => 'Create Vakalatnama Stickers',
-            'create_own' => 'Create Own Vakalatnama Stickers',
-            'payment_verify' => 'Verify Vakalatnama Sticker Payments',
-            'print' => 'Print Vakalatnama Stickers',
-            'reprint' => 'Reprint Vakalatnama Stickers',
-            'settings' => 'Manage Vakalatnama Sticker Settings',
+            'vakalatnama.view' => [
+                'name' => 'View Vakalatnama Stickers',
+                'action' => 'view',
+                'description' => 'View Vakalatnama sticker records.',
+            ],
+
+            'vakalatnama.view_all' => [
+                'name' => 'View All Vakalatnama Stickers',
+                'action' => 'view_all',
+                'description' => 'View all members Vakalatnama sticker orders.',
+            ],
+
+            'vakalatnama.view_own' => [
+                'name' => 'View Own Vakalatnama Stickers',
+                'action' => 'view_own',
+                'description' => 'View own Vakalatnama sticker orders.',
+            ],
+
+            'vakalatnama.create' => [
+                'name' => 'Create Vakalatnama Sticker Orders',
+                'action' => 'create',
+                'description' => 'Create sticker orders for any eligible member.',
+            ],
+
+            'vakalatnama.create_own' => [
+                'name' => 'Create Own Vakalatnama Sticker Orders',
+                'action' => 'create_own',
+                'description' => 'Create sticker orders for own account only.',
+            ],
+
+            'vakalatnama.pay' => [
+                'name' => 'Pay Vakalatnama Sticker Orders',
+                'action' => 'pay',
+                'description' => 'Submit or record payments for sticker orders.',
+            ],
+
+            'vakalatnama.print' => [
+                'name' => 'Print Vakalatnama Stickers',
+                'action' => 'print',
+                'description' => 'Print eligible paid stickers for the first time.',
+            ],
+
+            'vakalatnama.reprint' => [
+                'name' => 'Reprint Vakalatnama Stickers',
+                'action' => 'reprint',
+                'description' => 'Authorize and perform sticker reprints.',
+            ],
+
+            'vakalatnama.verify' => [
+                'name' => 'Verify Vakalatnama Stickers',
+                'action' => 'verify',
+                'description' => 'Access sticker verification operations.',
+            ],
+
+            'vakalatnama.settings' => [
+                'name' => 'Manage Vakalatnama Sticker Settings',
+                'action' => 'settings',
+                'description' => 'Manage sticker prices and feature settings.',
+            ],
         ];
 
-        DB::transaction(function () use ($module, $permissions) {
-            $permissionIds = [];
+        $permissionIds = [];
 
-            foreach ($permissions as $action => $description) {
-                $name = "{$module}.{$action}";
-
-                // Explicit slug generation ensures correct hyphen separators.
-                $slug = 'vakalatnama-sticker-' . str_replace('_', '-', $action);
-
-                $permission = Permission::updateOrCreate(
-                    ['name' => $name],
-                    [
-                        'slug' => $slug,
-                        'module' => $module,
-                        'action' => $action,
-                        'description' => $description,
-                    ]
-                );
-
-                $permissionIds[] = $permission->id;
-            }
-
-            $superAdminRole = Role::query()
-                ->where('slug', 'super-admin')
-                ->first();
-
-            if (!$superAdminRole) {
-                throw new \RuntimeException(
-                    'Super Admin role was not found.'
-                );
-            }
-
-            // Assign all sticker permissions to Super Admin.
-            $superAdminRole->permissions()->syncWithoutDetaching(
-                $permissionIds
+        foreach ($permissions as $slug => $permission) {
+            $record = Permission::updateOrCreate(
+                ['slug' => $slug],
+                [
+                    'name' => $permission['name'],
+                    'module' => 'vakalatnama',
+                    'action' => $permission['action'],
+                    'description' => $permission['description'],
+                ]
             );
-        });
 
-        // Clear permission caches after updating permissions.
-        $userIds = DB::table('model_has_roles')
-            ->where('role_id', function ($query) {
-                $query->select('id')
-                    ->from('roles')
-                    ->where('slug', 'super-admin')
-                    ->limit(1);
-            })
-            ->pluck('user_id');
-
-        foreach ($userIds as $userId) {
-            app(\App\Services\Rbac\PermissionService::class)
-                ->clearUserCache((int) $userId);
+            $permissionIds[] = $record->id;
         }
 
-        $this->command->info(
-            'Vakalatnama Sticker permissions created and assigned to Super Admin successfully.'
-        );
+        /*
+         * Super Admin:
+         * Assign all Vakalatnama permissions.
+         */
+        $superAdmin = Role::where('slug', 'super-admin')->first();
+
+        if ($superAdmin) {
+            $superAdmin->permissions()->syncWithoutDetaching(
+                $permissionIds
+            );
+        }
+
+        /*
+         * Member:
+         * Only own order viewing and creation.
+         */
+        $member = Role::where('slug', 'member')->first();
+
+        if ($member) {
+            $memberPermissionIds = Permission::whereIn('slug', [
+                'vakalatnama.view_own',
+                'vakalatnama.create_own',
+            ])->pluck('id')->all();
+
+            $member->permissions()->syncWithoutDetaching(
+                $memberPermissionIds
+            );
+        }
     }
 }

@@ -15,7 +15,8 @@ class DatabaseSeeder extends Seeder
             MembershipFeeSettingsSeeder::class,
             PaymentGatewaySeeder::class,
             TransactionCategorySeeder::class,
-            VakalatnamaStickerSettingsSeeder::class,
+            VakalatnamaStickerSettingSeeder::class,
+            VakalatnamaStickerTransactionCategorySeeder::class,
             VakalatnamaStickerPermissionSeeder::class,
         ]);
     }

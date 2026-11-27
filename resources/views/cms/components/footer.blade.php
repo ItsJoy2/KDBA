@@ -19,13 +19,13 @@
         <!-- Replace each number with the verified local number before launch -->
         <ul class="emg row row-cols-1 row-cols-sm-2 gx-4">
           <li class="col"><span>National Emergency</span><b>999</b></li>
-          <li class="col"><span>Fire Service</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>Police Station</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>Sadar Hospital</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>Bar Association Office</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>Press Club</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>District Commissioner</span><b>01XXX-XXXXXX</b></li>
-          <li class="col"><span>Ambulance</span><b>01XXX-XXXXXX</b></li>
+          <li class="col"><span>Fire Service</span><b>01901-021661</b></li>
+          <li class="col"><span>Police Station</span><b>01853-131209</b></li>
+          <li class="col"><span>Sadar Hospital</span><b>0371-61523</b></li>
+          {{-- <li class="col"><span>Bar Association Office</span><b>01853-131209</b></li> --}}
+          <li class="col"><span>Press Club</span><b>01534-975529</b></li>
+          <li class="col"><span>District Commissioner</span><b>01550-604500</b></li>
+          <li class="col"><span>Ambulance</span><b>01568-735254</b></li>
         </ul>
       </div>
     </div>
