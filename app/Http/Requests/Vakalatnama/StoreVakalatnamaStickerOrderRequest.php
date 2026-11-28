@@ -16,9 +16,8 @@ class StoreVakalatnamaStickerOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['nullable', 'integer','exists:users,id',
-            ],
-            'quantity' => ['required','integer', 'min:1', 'max:500',],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:500'],
         ];
     }
 
@@ -31,12 +30,11 @@ class StoreVakalatnamaStickerOrderRequest extends FormRequest
                 return;
             }
 
-            $isAdminRoute = $this->routeIs(
-                'admin.vakalatnama.*'
-            );
+            $isAdminRoute = $this->routeIs('admin.vakalatnama.*');
 
             if ($isAdminRoute) {
-                if (! $actor->can('vakalatnama.create')) {
+                // Creating an order for another member.
+                if (! $actor->hasPermission('vakalatnama.create')) {
                     $validator->errors()->add(
                         'permission',
                         'You are not authorized to create sticker orders.'
@@ -56,6 +54,19 @@ class StoreVakalatnamaStickerOrderRequest extends FormRequest
 
                 $member = User::find($this->input('user_id'));
             } else {
+                // Ordering for self: create_own OR create is enough.
+                if (
+                    ! $actor->hasPermission('vakalatnama.create_own')
+                    && ! $actor->hasPermission('vakalatnama.create')
+                ) {
+                    $validator->errors()->add(
+                        'permission',
+                        'You are not authorized to create sticker orders.'
+                    );
+
+                    return;
+                }
+
                 // Member orders always belong to the authenticated user.
                 if ($this->filled('user_id')) {
                     $validator->errors()->add(

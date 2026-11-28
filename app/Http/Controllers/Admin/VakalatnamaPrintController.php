@@ -27,7 +27,7 @@ class VakalatnamaPrintController extends Controller
         VakalatnamaSticker $sticker
     ): View {
         abort_unless(
-            $request->user()->can('vakalatnama.print'),
+            $request->user()->hasPermission('vakalatnama.print'),
             403
         );
 
@@ -68,7 +68,7 @@ class VakalatnamaPrintController extends Controller
         VakalatnamaSticker $sticker
     ): View {
         abort_unless(
-            $request->user()->can('vakalatnama.reprint'),
+            $request->user()->hasPermission('vakalatnama.reprint'),
             403
         );
 
@@ -106,7 +106,7 @@ class VakalatnamaPrintController extends Controller
         VakalatnamaSticker $sticker
     ): View {
         abort_unless(
-            $request->user()->can('vakalatnama.view'),
+            $request->user()->hasPermission('vakalatnama.view'),
             403
         );
 

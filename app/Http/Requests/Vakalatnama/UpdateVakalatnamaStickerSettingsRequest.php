@@ -13,8 +13,8 @@ class UpdateVakalatnamaStickerSettingsRequest extends FormRequest
 
         return $user !== null
             && (
-                $user->can('vakalatnama.settings')
-                || $user->can('settings.manage')
+                $user->hasPermission('vakalatnama.settings')
+                || $user->hasPermission('settings.manage')
             );
     }
 

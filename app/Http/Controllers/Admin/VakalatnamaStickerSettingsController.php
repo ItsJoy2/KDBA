@@ -22,8 +22,8 @@ class VakalatnamaStickerSettingsController extends Controller
     public function index(Request $request): View
     {
         abort_unless(
-            $request->user()->can('vakalatnama.settings')
-            || $request->user()->can('settings.manage'),
+            $request->user()->hasPermission('vakalatnama.settings')
+            || $request->user()->hasPermission('settings.manage'),
             403
         );
 

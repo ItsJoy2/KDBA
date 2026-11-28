@@ -9,6 +9,7 @@ use App\Models\PaymentGateway;
 use App\Models\User;
 use App\Models\VakalatnamaStickerOrder;
 use App\Services\VakalatnamaStickerService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,24 +29,22 @@ class VakalatnamaOrderController extends Controller
     public function adminIndex(Request $request): View
     {
         abort_unless(
-            $request->user()->can('vakalatnama.view'),
+            $request->user()->hasPermission('vakalatnama.view'),
             403
         );
 
         $query = VakalatnamaStickerOrder::query()
             ->with([
-                'user:id,name,membership_number,phone',
-                'creator:id,name',
-                'approver:id,name',
+                'user:id,full_name,membership_number,mobile',
+                'creator:id,full_name',
+                'approver:id,full_name',
                 'transaction',
             ])
             ->withCount('stickers')
             ->latest();
 
-        // Restrict staff without view-all access to their own
-        // created orders. Grant broader scope through the
-        // existing RBAC permission.
-        if (! $request->user()->can('vakalatnama.view_all')) {
+        // Staff without view_all can only see orders they created.
+        if (! $request->user()->hasPermission('vakalatnama.view_all')) {
             $query->where('created_by', $request->user()->id);
         }
 
@@ -55,7 +54,7 @@ class VakalatnamaOrderController extends Controller
             $query->where(function ($builder) use ($search) {
                 $builder->where('order_number', 'like', "%{$search}%")
                     ->orWhereHas('user', function ($userQuery) use ($search) {
-                        $userQuery->where('name', 'like', "%{$search}%")
+                        $userQuery->where('full_name', 'like', "%{$search}%")
                             ->orWhere('membership_number', 'like', "%{$search}%");
                     });
             });
@@ -70,9 +69,11 @@ class VakalatnamaOrderController extends Controller
 
         $orders = $query->paginate(20)->withQueryString();
 
+        $paymentGateways = $this->paymentGateways();
+
         return view(
             'admin.vakalatnama-stickers.index',
-            compact('orders')
+            compact('orders', 'paymentGateways')
         );
     }
 
@@ -82,19 +83,19 @@ class VakalatnamaOrderController extends Controller
     public function adminCreate(Request $request): View
     {
         abort_unless(
-            $request->user()->can('vakalatnama.create'),
+            $request->user()->hasPermission('vakalatnama.create'),
             403
         );
 
         $members = User::query()
             ->where('approval_status', 'approved')
             ->where('member_status', 'member')
-            ->orderBy('name')
+            ->orderBy('full_name')
             ->get([
                 'id',
-                'name',
+                'full_name',
                 'membership_number',
-                'phone',
+                'mobile',
             ]);
 
         $unitPrice = $this->stickerService->getUnitPrice();
@@ -112,7 +113,7 @@ class VakalatnamaOrderController extends Controller
         StoreVakalatnamaStickerOrderRequest $request
     ): RedirectResponse {
         abort_unless(
-            $request->user()->can('vakalatnama.create'),
+            $request->user()->hasPermission('vakalatnama.create'),
             403
         );
 
@@ -123,7 +124,7 @@ class VakalatnamaOrderController extends Controller
         );
 
         return redirect()
-            ->route('admin.vakalatnama.show', $order)
+            ->route('admin.vakalatnama.index', $order)
             ->with(
                 'success',
                 'Vakalatnama sticker order created successfully.'
@@ -138,11 +139,11 @@ class VakalatnamaOrderController extends Controller
         VakalatnamaStickerOrder $order
     ): View {
         abort_unless(
-            $request->user()->can('vakalatnama.view'),
+            $request->user()->hasPermission('vakalatnama.view'),
             403
         );
 
-        if (! $request->user()->can('vakalatnama.view_all')) {
+        if (! $request->user()->hasPermission('vakalatnama.view_all')) {
             abort_unless(
                 (int) $order->created_by === (int) $request->user()->id,
                 403
@@ -172,13 +173,18 @@ class VakalatnamaOrderController extends Controller
 
         $orders = VakalatnamaStickerOrder::query()
             ->where('user_id', $user->id)
+            ->with([
+                'transaction',
+            ])
             ->withCount('stickers')
             ->latest()
             ->paginate(15);
 
+        $paymentGateways = $this->paymentGateways();
+
         return view(
             'member.vakalatnama-stickers.index',
-            compact('orders')
+            compact('orders', 'paymentGateways')
         );
     }
 
@@ -248,6 +254,7 @@ class VakalatnamaOrderController extends Controller
     /**
      * Member: Submit payment.
      *
+     * The payment goes to payment verification.
      * The receipt is stored on a private disk so that it
      * cannot be accessed through a public URL.
      */
@@ -296,40 +303,62 @@ class VakalatnamaOrderController extends Controller
     /**
      * Admin: Record payment on behalf of a member.
      *
-     * Useful for cash counter payments and office collections.
-     * The payment still goes through the existing verification
-     * process.
+     * The payment is approved immediately: the order is marked as
+     * paid and the sticker numbers are issued in the same step,
+     * with no separate payment verification.
      */
     public function adminPay(
         StoreVakalatnamaStickerPaymentRequest $request,
         VakalatnamaStickerOrder $order
     ): RedirectResponse {
         abort_unless(
-            $request->user()->can('vakalatnama.pay'),
+            $request->user()->hasPermission('vakalatnama.pay'),
             403
         );
 
-        $this->stickerService->recordPayment(
-            actor: $request->user(),
-            orderId: $order->id,
-            gatewayId: (int) $request->validated('payment_gateway_id'),
-            trxId: $request->validated('trx_id'),
-            senderMobile: $request->validated('sender_mobile'),
-            remarks: $request->validated('remarks')
+        abort_if(
+            $order->payment_status === 'paid',
+            422,
+            'This order has already been paid.'
         );
 
+        $receiptPath = null;
+
+        try {
+            if ($request->hasFile('receipt')) {
+                $receiptPath = $request->file('receipt')
+                    ->store('vakalatnama/receipts', 'local');
+            }
+
+            $this->stickerService->recordAdminPayment(
+                actor: $request->user(),
+                orderId: $order->id,
+                gatewayId: (int) $request->validated('payment_gateway_id'),
+                trxId: $request->validated('trx_id'),
+                senderMobile: $request->validated('sender_mobile'),
+                receiptPath: $receiptPath,
+                remarks: $request->validated('remarks')
+            );
+        } catch (Throwable $exception) {
+            if ($receiptPath) {
+                Storage::disk('local')->delete($receiptPath);
+            }
+
+            throw $exception;
+        }
+
         return redirect()
-            ->route('admin.vakalatnama.show', $order)
+            ->route('admin.vakalatnama.index')
             ->with(
                 'success',
-                'Payment recorded successfully and submitted for verification.'
+                'Payment recorded and approved. Stickers have been issued.'
             );
     }
 
     /**
      * Load available payment gateways for payment pages.
      */
-    public function paymentGateways(): \Illuminate\Database\Eloquent\Collection
+    public function paymentGateways(): Collection
     {
         return PaymentGateway::query()
             ->where('is_active', true)

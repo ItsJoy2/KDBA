@@ -305,7 +305,7 @@ Route::middleware(['auth', 'active.user', 'two-factor.complete', 'session.harden
                 Route::get('/stickers/{sticker}/print-history', [VakalatnamaPrintController::class, 'history', ])->whereNumber('sticker')->name('print-history');
             });
             Route::middleware('permission:vakalatnama.pay')->group(function () {
-                Route::post('/{order}/payment', [VakalatnamaOrderController::class,'adminPay',])->whereNumber('order')->name('payment');
+                Route::post('/{order}/payment', [VakalatnamaOrderController::class,'adminPay',])->whereNumber('order')->name('pay');
             });
             Route::middleware('permission:vakalatnama.view')->group(function () {
                 Route::get('/', [VakalatnamaOrderController::class,'adminIndex',])->name('index');

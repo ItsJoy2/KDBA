@@ -188,11 +188,11 @@
     </div>
 
     {{-- Invoice View Modals --}}
-    @foreach($invoices as $invoice)
+    {{-- @foreach($invoices as $invoice)
         @include('admin.invoices.partials.__view-modal', [
             'invoice' => $invoice
         ])
-    @endforeach
+    @endforeach --}}
 
 
 

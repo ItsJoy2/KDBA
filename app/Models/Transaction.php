@@ -83,11 +83,11 @@ class Transaction extends Model
         return $this->belongsTo(Order::class);
     }
     
-    public function vakalatnamaStickerOrder(): BelongsTo
+    public function vakalatnamaStickerOrder()
     {
-        return $this->belongsTo(
+        return $this->hasOne(
             VakalatnamaStickerOrder::class,
-            'vakalatnama_sticker_order_id'
+            'transaction_id'
         );
     }
 }

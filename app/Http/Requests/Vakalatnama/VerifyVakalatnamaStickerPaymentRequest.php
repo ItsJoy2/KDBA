@@ -13,8 +13,8 @@ class VerifyVakalatnamaStickerPaymentRequest extends FormRequest
 
         return $user !== null
             && (
-                $user->can('transactions.verify')
-                || $user->can('vakalatnama.verify')
+                $user->hasPermission('transactions.verify')
+                || $user->hasPermission('vakalatnama.verify')
             );
     }
 

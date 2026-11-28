@@ -26,6 +26,7 @@ class FinancialLedgerController extends Controller
                 'category:id,name,type',
                 'invoice:id,invoice_number,invoice_type',
                 'paymentGateway:id,name',
+                'vakalatnamaStickerOrder:id,transaction_id,order_number',
             ])
             ->when($request->filled('category_id'), function ($query) use ($request) {
                 $query->where('category_id', $request->category_id);

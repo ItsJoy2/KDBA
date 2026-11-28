@@ -27,7 +27,8 @@ class PaymentTransactionController extends Controller
         $transactions = Transaction::query()
             ->where(function ($query) {
                 $query->whereNotNull('invoice_id')
-                    ->orWhereNotNull('order_id');
+                    ->orWhereNotNull('order_id')
+                    ->orWhereHas('vakalatnamaStickerOrder');
             })
             ->with([
                 'user:id,full_name,membership_number',
@@ -48,6 +49,9 @@ class PaymentTransactionController extends Controller
                 // Payment
                 'paymentGateway:id,name,account_number',
                 'verifier:id,full_name',
+
+                'vakalatnamaStickerOrder.user:id,full_name,membership_number',
+                'vakalatnamaStickerOrder.creator:id,full_name',
             ])
             ->latest()
             ->paginate(20);

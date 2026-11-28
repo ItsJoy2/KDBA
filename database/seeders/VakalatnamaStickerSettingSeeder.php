@@ -13,7 +13,7 @@ class VakalatnamaStickerSettingSeeder extends Seeder
         $settings = [
             [
                 'key' => 'vakalatnama_sticker_price',
-                'value' => '100.00',
+                'value' => '300.00',
                 'type' => 'text',
                 'group' => 'vakalatnama_sticker',
             ],
